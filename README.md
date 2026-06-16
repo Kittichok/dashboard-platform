@@ -1,31 +1,65 @@
-# Dashboard Platform Prototype
+# Dashboard Platform
 
-Visual-only prototype for the Dashboard Platform product language and main screens.
+A product that lets people assemble data-driven dashboards from configurable parts.
 
-## Run
+## Quick Start
 
-```bash
-cd dashboard-platform
-npm run dev
+### Prerequisites
+
+- Java 21 (JDK)
+- Node.js (build-time only, managed automatically by Maven)
+
+### Run the full application
+
+```powershell
+.\mvnw.cmd spring-boot:run
 ```
 
-Open <http://localhost:4173>.
+Open http://localhost:8080.
 
-## Test
+### Run frontend in dev mode (hot reload)
 
-```bash
-cd dashboard-platform
-npm test
+```powershell
+Set-Location src/main/frontend
+npm.cmd run dev
 ```
 
-## Included
+Open http://localhost:5173 (proxies API to http://localhost:8080).
 
-- Dashboard Library with mock search and actions
-- Service Operations dashboard with dashboard variables
-- Table, Text, Raw JSON, and JSON Preview widgets
-- Search and Refresh prototype states
-- Edit Mode with Dashboard Draft, Variables Panel, widget selection, Save, and Cancel
-- Data Source Library supporting the main navigation
+### Run tests
 
-All data and changes are local to the browser session. No external requests or persistence are implemented.
+Backend:
+```powershell
+.\mvnw.cmd test
+```
+
+Frontend:
+```powershell
+Set-Location src/main/frontend
+npm.cmd run test:run
+```
+
+### Build executable JAR
+
+```powershell
+.\mvnw.cmd package
+java -jar target/dashboard-platform-*.jar
+```
+
+### Configuration
+
+Set `DASHBOARD_DB_PATH` to control where the SQLite database is stored (defaults to `./data/dashboard-platform.db`):
+
+```powershell
+$env:DASHBOARD_DB_PATH='C:\data\my-dashboards.db'
+.\mvnw.cmd spring-boot:run
+```
+
+## Architecture
+
+- **Backend:** Java 21 + Spring Boot 3.5, Spring MVC, Spring JDBC, SQLite
+- **Frontend:** React + TypeScript + Vite (built into the JAR via `frontend-maven-plugin`)
+- **Database:** Embedded SQLite, versioned via a custom migration runner
+
+Node.js is required at build time only. Production deployments run the JAR with no Node dependency.
 

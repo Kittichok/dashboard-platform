@@ -63,6 +63,7 @@
         <executions>
           <execution>
             <id>install-node-and-npm</id>
+            <phase>generate-resources</phase>
             <goals>
               <goal>install-node-and-npm</goal>
             </goals>
@@ -72,28 +73,19 @@
             </configuration>
           </execution>
           <execution>
-            <id>npm-ci</id>
+            <id>npm-install</id>
+            <phase>generate-resources</phase>
             <goals>
               <goal>npm</goal>
             </goals>
             <configuration>
-              <arguments>ci</arguments>
-              <skip>${skipFrontend}</skip>
-            </configuration>
-          </execution>
-          <execution>
-            <id>frontend-build</id>
-            <goals>
-              <goal>npm</goal>
-            </goals>
-            <configuration>
-              <arguments>run build</arguments>
+              <arguments>install</arguments>
               <skip>${skipFrontend}</skip>
             </configuration>
           </execution>
           <execution>
             <id>frontend-test</id>
-            <phase>test</phase>
+            <phase>generate-resources</phase>
             <goals>
               <goal>npm</goal>
             </goals>
@@ -102,10 +94,22 @@
               <skip>${skipFrontend}</skip>
             </configuration>
           </execution>
+          <execution>
+            <id>frontend-build</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>run build</arguments>
+              <skip>${skipFrontend}</skip>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
         <executions>
           <execution>
             <id>copy-frontend</id>

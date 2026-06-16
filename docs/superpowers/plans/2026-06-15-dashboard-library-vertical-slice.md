@@ -1,6 +1,8 @@
 # Dashboard Library Vertical Slice Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **Low-token execution prompt:** Implement only one task step at a time from this plan. Read only that step plus the minimum directly related files. Do not scan the whole repository or summarize unrelated sections. Before editing, list the files you will touch in 3 bullets max. Then implement the change, run only the smallest relevant verification, and finish with: files changed, what was implemented, verification result, and any blocker or follow-up.
 
 **Goal:** Ship a single executable Spring Boot JAR containing a React dashboard library with SQLite-backed create, list, rename, duplicate, and delete operations.
 
@@ -9,6 +11,105 @@
 **Tech Stack:** Java 21, Maven Wrapper, Spring Boot, Spring MVC, Spring JDBC, SQLite JDBC, React, TypeScript, Vite, Vitest, Testing Library
 
 ---
+
+## GPT-5.4 Mini Execution Guide
+
+Use this prompt frame for every implementation turn:
+
+```text
+Implement only the slice below from D:/AI/dashboard-platform/docs/superpowers/plans/2026-06-15-dashboard-library-vertical-slice.md.
+
+Read only the listed files.
+Do not scan the whole repository.
+Before editing, list the files you will touch in 3 bullets max.
+Then implement the change, run the smallest relevant verification, and finish with:
+1. files changed
+2. what was implemented
+3. verification result
+4. blocker or follow-up
+```
+
+Recommended scope: one step per turn, usually 1-3 files, and avoid combining backend, tests, and frontend in the same request.
+
+### Model Usage Policy
+
+- Use `GPT-5.4 mini` by default for mechanical implementation slices that touch 1-3 files and have clear acceptance criteria from this plan.
+- Use `GPT-5.4 mini` for focused test authoring, small config edits, DTO changes, repository methods, and isolated React component updates.
+- Escalate to `GPT-5.4` when the task spans multiple layers, requires judgment across many files, involves debugging unclear failures, or the mini worker reports `BLOCKED` or repeats the same mistake.
+- Use `GPT-5.4` for spec-compliance review, code-quality review, and manager decisions about whether a deviation is acceptable.
+- Do not use `GPT-5.4` for routine single-step implementation if `GPT-5.4 mini` can execute it safely from the written plan.
+- If a task mixes implementation, debugging, and review, split it first so `GPT-5.4 mini` handles the implementation slice and `GPT-5.4` handles the review slice.
+- Prefer one worker turn plus one review turn over a single broad turn with a larger model.
+- If verification is blocked by environment issues such as `JAVA_HOME`, network access, or wrapper downloads, resolve the environment blocker before escalating model size.
+
+### Suggested Mini Slices
+
+- **Task 1 Step 1**
+  Only inspect: `mvnw`, `mvnw.cmd`, `.mvn/wrapper/maven-wrapper.properties`
+- **Task 1 Step 2**
+  Only inspect: `pom.xml`
+- **Task 1 Step 3**
+  Only inspect: `src/main/java/com/dashboardplatform/DashboardPlatformApplication.java`
+- **Task 1 Step 4**
+  Only inspect: `src/main/resources/application.yml`
+- **Task 1 Step 5a**
+  Only inspect: `src/main/frontend/package.json`, `src/main/frontend/package-lock.json`, `src/main/frontend/tsconfig.json`, `src/main/frontend/vite.config.ts`
+- **Task 1 Step 5b**
+  Only inspect: `src/main/frontend/index.html`, `src/main/frontend/src/main.tsx`, `src/main/frontend/src/App.tsx`
+- **Task 2 Step 2**
+  Only inspect: `src/test/java/com/dashboardplatform/dashboard/JdbcDashboardRepositoryTest.java`, `src/main/resources/db/migration/V1__create_dashboards.sql`, `src/main/java/com/dashboardplatform/dashboard/DatabaseMigrationRunner.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardRepository.java`
+- **Task 2 Step 3**
+  Only inspect: `src/test/java/com/dashboardplatform/dashboard/DashboardServiceTest.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardService.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardExceptions.java`, `src/main/java/com/dashboardplatform/dashboard/Dashboard.java`
+- **Task 3 Step 1**
+  Only inspect: `src/main/resources/db/migration/V1__create_dashboards.sql`, `src/main/java/com/dashboardplatform/dashboard/DatabaseMigrationRunner.java`
+- **Task 3 Step 2**
+  Only inspect: `src/main/java/com/dashboardplatform/dashboard/Dashboard.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardRepository.java`
+- **Task 3 Step 3**
+  Only inspect: `src/main/java/com/dashboardplatform/dashboard/JdbcDashboardRepository.java`, `src/main/java/com/dashboardplatform/dashboard/Dashboard.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardRepository.java`
+- **Task 3 Step 4**
+  Only inspect: `src/main/java/com/dashboardplatform/dashboard/DashboardExceptions.java`
+- **Task 3 Step 5**
+  Only inspect: `src/main/java/com/dashboardplatform/dashboard/DashboardService.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardRepository.java`, `src/main/java/com/dashboardplatform/dashboard/Dashboard.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardExceptions.java`
+- **Task 4 Step 1**
+  Only inspect: `src/test/java/com/dashboardplatform/dashboard/DashboardControllerTest.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardController.java`, `src/main/java/com/dashboardplatform/web/ApiExceptionHandler.java`
+- **Task 4 Step 2**
+  Only inspect: `src/test/java/com/dashboardplatform/web/SpaForwardControllerTest.java`, `src/main/java/com/dashboardplatform/web/SpaForwardController.java`
+- **Task 5 Step 1**
+  Only inspect: `src/main/java/com/dashboardplatform/dashboard/DashboardRequests.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardResponse.java`
+- **Task 5 Step 2**
+  Only inspect: `src/main/java/com/dashboardplatform/dashboard/DashboardController.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardRequests.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardResponse.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardService.java`
+- **Task 5 Step 3**
+  Only inspect: `src/main/java/com/dashboardplatform/web/ApiError.java`, `src/main/java/com/dashboardplatform/web/ApiExceptionHandler.java`, `src/main/java/com/dashboardplatform/dashboard/DashboardExceptions.java`
+- **Task 5 Step 4**
+  Only inspect: `src/main/java/com/dashboardplatform/web/SpaForwardController.java`
+- **Task 6 Step 1**
+  Only inspect: `src/main/frontend/src/dashboard/__tests__/dashboardApi.test.ts`, `src/main/frontend/src/dashboard/dashboardApi.ts`, `src/main/frontend/src/dashboard/types.ts`
+- **Task 6 Step 2**
+  Only inspect: `src/main/frontend/src/dashboard/__tests__/DashboardLibrary.test.tsx`, `src/main/frontend/src/test/setup.ts`, `src/main/frontend/src/dashboard/DashboardLibrary.tsx`
+- **Task 7 Types**
+  Only inspect: `src/main/frontend/src/dashboard/types.ts`
+- **Task 7 Step 1**
+  Only inspect: `src/main/frontend/src/dashboard/dashboardApi.ts`, `src/main/frontend/src/dashboard/types.ts`
+- **Task 7 Step 2**
+  Only inspect: `src/main/frontend/src/dashboard/DashboardLibrary.tsx`, `src/main/frontend/src/dashboard/types.ts`, `src/main/frontend/src/dashboard/dashboardApi.ts`
+- **Task 7 Step 3a**
+  Only inspect: `src/main/frontend/src/dashboard/DashboardDialog.tsx`
+- **Task 7 Step 3b**
+  Only inspect: `src/main/frontend/src/dashboard/CreateDashboardDialog.tsx`, `src/main/frontend/src/dashboard/DashboardDialog.tsx`
+- **Task 7 Step 3c**
+  Only inspect: `src/main/frontend/src/dashboard/RenameDashboardDialog.tsx`, `src/main/frontend/src/dashboard/DashboardDialog.tsx`
+- **Task 7 Step 3d**
+  Only inspect: `src/main/frontend/src/dashboard/DeleteDashboardDialog.tsx`, `src/main/frontend/src/dashboard/DashboardDialog.tsx`
+- **Task 7 Card Presentation**
+  Only inspect: `src/main/frontend/src/dashboard/DashboardCard.tsx`, `src/main/frontend/src/dashboard/icons.tsx`
+- **Task 7 App Wiring**
+  Only inspect: `src/main/frontend/src/App.tsx`, `src/main/frontend/src/dashboard/DashboardLibrary.tsx`
+- **Task 7 Step 4**
+  Only inspect: `src/main/frontend/src/styles.css`, `README.md`
+- **Task 8 Step 1**
+  Only inspect: `README.md`
+- **Task 8 Plan Updates**
+  Only inspect: `docs/superpowers/plans/2026-06-15-dashboard-library-vertical-slice.md`
 
 ## File Structure
 
