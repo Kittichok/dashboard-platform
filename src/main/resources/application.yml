@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: dashboard-platform
+  datasource:
+    url: jdbc:sqlite:${DASHBOARD_DB_PATH:./dashboard-platform.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+
+server:
+  error:
+    include-message: never

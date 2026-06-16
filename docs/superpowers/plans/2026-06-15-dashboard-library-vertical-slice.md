@@ -6,7 +6,7 @@
 
 **Architecture:** The repository becomes one Maven project. Spring Boot exposes a layered dashboard API backed by Spring JDBC and SQLite; React, TypeScript, and Vite live under `src/main/frontend` and are built into the JAR. Automated tests are authored and maintained by a dedicated GPT-5.4 subagent, while production implementation remains separate.
 
-**Tech Stack:** Java 21, Maven Wrapper, Spring Boot, Spring MVC, Spring JDBC, Flyway, SQLite JDBC, React, TypeScript, Vite, Vitest, Testing Library
+**Tech Stack:** Java 21, Maven Wrapper, Spring Boot, Spring MVC, Spring JDBC, SQLite JDBC, React, TypeScript, Vite, Vitest, Testing Library
 
 ---
 
@@ -25,6 +25,7 @@ src/main/java/com/dashboardplatform/
     DashboardService.java                    Dashboard rules
     DashboardController.java                 REST routes
     JdbcDashboardRepository.java             SQLite persistence
+    DatabaseMigrationRunner.java             Versioned SQLite migrations
     DashboardRequests.java                   Request records
     DashboardResponse.java                   API response record
     DashboardExceptions.java                 Typed application exceptions
@@ -33,7 +34,7 @@ src/main/java/com/dashboardplatform/
     ApiExceptionHandler.java                 Exception-to-response mapping
     SpaForwardController.java                Client-route fallback
 src/main/resources/
-  application.yml                            SQLite and Flyway configuration
+  application.yml                            SQLite configuration
   db/migration/V1__create_dashboards.sql      Initial schema
 src/main/frontend/
   package.json
@@ -103,8 +104,6 @@ Create `pom.xml` with:
 - Spring Boot parent
 - `spring-boot-starter-web`
 - `spring-boot-starter-jdbc`
-- `flyway-core`
-- `flyway-database-sqlite`
 - `org.xerial:sqlite-jdbc`
 - `spring-boot-starter-test`
 - `frontend-maven-plugin`
@@ -204,8 +203,8 @@ The tests must require:
 - Delete only when both ID and version match
 - Existence check distinguishes missing records from stale versions
 
-Use a temporary SQLite file per test and run Flyway before constructing the
-repository.
+Use a temporary SQLite file per test and run the application migration runner
+before constructing the repository.
 
 - [ ] **Step 3: Write service rule tests**
 
@@ -236,6 +235,7 @@ types do not exist yet. The subagent reports the exact failures.
 - Create: `src/main/java/com/dashboardplatform/dashboard/Dashboard.java`
 - Create: `src/main/java/com/dashboardplatform/dashboard/DashboardRepository.java`
 - Create: `src/main/java/com/dashboardplatform/dashboard/JdbcDashboardRepository.java`
+- Create: `src/main/java/com/dashboardplatform/dashboard/DatabaseMigrationRunner.java`
 - Create: `src/main/java/com/dashboardplatform/dashboard/DashboardExceptions.java`
 - Create: `src/main/java/com/dashboardplatform/dashboard/DashboardService.java`
 
@@ -255,6 +255,11 @@ CREATE TABLE dashboards (
 CREATE INDEX dashboards_updated_at_idx
     ON dashboards(updated_at DESC);
 ```
+
+Implement `DatabaseMigrationRunner` to create a `schema_history` table, inspect
+applied versions, run `V1__create_dashboards.sql` once, and record version `1`
+in the same transaction. This keeps migrations versioned without relying on a
+database tool that does not clearly support SQLite.
 
 - [ ] **Step 2: Define the domain record and repository interface**
 
