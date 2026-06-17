@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Objects;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +20,7 @@ public class DatabaseMigrationRunner {
 
     private final DataSource dataSource;
 
+    @Autowired
     public DatabaseMigrationRunner(DataSource dataSource) {
         this.dataSource = dataSource;
     }

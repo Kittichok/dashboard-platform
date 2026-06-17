@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,6 +17,7 @@ public class DashboardService {
     private final Clock clock;
     private final Supplier<UUID> uuidSupplier;
 
+    @Autowired
     public DashboardService(DashboardRepository repository) {
         this(repository, Clock.systemUTC(), UUID::randomUUID);
     }
