@@ -90,6 +90,10 @@ public class DashboardService {
         return repository.findAll();
     }
 
+    public Dashboard getDashboard(UUID id) {
+        return findDashboard(id);
+    }
+
     Dashboard findDashboard(UUID id) {
         return repository.findById(id)
             .orElseThrow(() -> new DashboardNotFoundException(id));

@@ -6,6 +6,10 @@ type ApiErrorBody = {
   fieldErrors?: Record<string, string>;
 };
 
+export async function getDashboard(id: string): Promise<Dashboard> {
+  return request<Dashboard>(`/api/dashboards/${id}`, { method: "GET" });
+}
+
 export async function listDashboards(): Promise<Dashboard[]> {
   return request<Dashboard[]>("/api/dashboards", { method: "GET" });
 }

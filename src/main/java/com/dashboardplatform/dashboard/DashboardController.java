@@ -43,6 +43,11 @@ public class DashboardController {
             .toList();
     }
 
+    @GetMapping("/{id}")
+    public DashboardResponse getDashboard(@PathVariable UUID id) {
+        return response(dashboardService.getDashboard(id));
+    }
+
     @PostMapping
     public ResponseEntity<DashboardResponse> createDashboard(
         @Valid @RequestBody CreateDashboardRequest request

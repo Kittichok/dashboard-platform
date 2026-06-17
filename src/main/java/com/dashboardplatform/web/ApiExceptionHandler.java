@@ -3,7 +3,10 @@ package com.dashboardplatform.web;
 import com.dashboardplatform.dashboard.DashboardNotFoundException;
 import com.dashboardplatform.dashboard.DashboardValidationException;
 import com.dashboardplatform.dashboard.DashboardVersionConflictException;
+import com.dashboardplatform.widget.WidgetExceptions.WidgetFetchException;
+import com.dashboardplatform.widget.WidgetExceptions.WidgetNotFoundException;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -49,6 +52,20 @@ public class ApiExceptionHandler {
             .body(ApiError.of(
                 "dashboard_version_conflict",
                 "The dashboard changed after it was loaded."));
+    }
+
+    @ExceptionHandler(WidgetNotFoundException.class)
+    public ResponseEntity<ApiError> handleWidgetNotFound() {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiError.of("widget_not_found", "The requested widget does not exist."));
+    }
+
+    @ExceptionHandler(WidgetFetchException.class)
+    public ResponseEntity<Map<String, Object>> handleWidgetFetch(WidgetFetchException exception) {
+        return ResponseEntity.ok(Map.of(
+            "fetchError", true,
+            "status", exception.httpStatus(),
+            "body", exception.body()));
     }
 
     @ExceptionHandler(RuntimeException.class)

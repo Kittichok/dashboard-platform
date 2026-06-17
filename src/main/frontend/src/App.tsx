@@ -1,11 +1,16 @@
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+
 import { DashboardLibrary } from "./dashboard/DashboardLibrary";
+import { DashboardEditor } from "./widget/DashboardEditor";
 import "./styles.css";
 
 export function App() {
   return (
-    <main className="app-shell">
-      <h1>Dashboard Library</h1>
-      <DashboardLibrary />
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/dashboards/:id" element={<DashboardEditor />} />
+        <Route path="*" element={<DashboardLibrary />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
