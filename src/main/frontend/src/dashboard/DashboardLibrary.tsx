@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   createDashboard,
@@ -21,6 +22,7 @@ type DialogState =
   | null;
 
 export function DashboardLibrary() {
+  const navigate = useNavigate();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -211,6 +213,7 @@ export function DashboardLibrary() {
                 key={dashboard.id}
                 dashboard={dashboard}
                 index={index}
+                onClick={(item) => navigate(`/dashboards/${item.id}/view`)}
                 onRename={(item) => openDialog({ type: "rename", dashboard: item })}
                 onDuplicate={duplicate}
                 onDelete={(item) => openDialog({ type: "delete", dashboard: item })}

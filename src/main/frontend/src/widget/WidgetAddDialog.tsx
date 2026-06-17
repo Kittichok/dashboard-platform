@@ -1,25 +1,51 @@
 import { useState } from "react";
 
 import { DashboardDialog } from "../dashboard/DashboardDialog";
-import type { WidgetInput, WidgetType } from "./types";
+import type { Widget, WidgetInput, WidgetType } from "./types";
 
 type WidgetAddDialogProps = {
   fieldErrors: Record<string, string>;
   operationMessage: string | null;
   onClose: () => void;
   onSubmit: (input: WidgetInput) => Promise<void>;
+  existingWidgets?: Widget[];
 };
+
+function findDefaultPosition(existing: Widget[], w: number, h: number): { x: number; y: number } {
+  const occupied = new Set<string>();
+  for (const wgt of existing) {
+    for (let dx = 0; dx < wgt.w; dx++) {
+      for (let dy = 0; dy < wgt.h; dy++) {
+        occupied.add(`${wgt.x + dx},${wgt.y + dy}`);
+      }
+    }
+  }
+  for (let y = 0; y < 50; y++) {
+    for (let x = 0; x <= 12 - w; x++) {
+      let free = true;
+      for (let dx = 0; dx < w && free; dx++) {
+        for (let dy = 0; dy < h && free; dy++) {
+          if (occupied.has(`${x + dx},${y + dy}`)) free = false;
+        }
+      }
+      if (free) return { x, y };
+    }
+  }
+  return { x: 0, y: 50 };
+}
 
 export function WidgetAddDialog({
   fieldErrors,
   operationMessage,
   onClose,
-  onSubmit
+  onSubmit,
+  existingWidgets = []
 }: WidgetAddDialogProps) {
+  const defaultPos = findDefaultPosition(existingWidgets, 3, 2);
   const [title, setTitle] = useState("");
   const [type, setType] = useState<WidgetType>("table");
-  const [x, setX] = useState(0);
-  const [y, setY] = useState(0);
+  const [x, setX] = useState(defaultPos.x);
+  const [y, setY] = useState(defaultPos.y);
   const [w, setW] = useState(3);
   const [h, setH] = useState(2);
 

@@ -1,6 +1,7 @@
 package com.dashboardplatform.widget;
 
 import com.dashboardplatform.dashboard.DashboardVersionConflictException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -55,7 +56,7 @@ public class JdbcWidgetRepository implements WidgetRepository {
             if (updated == 0) {
                 throw new DashboardVersionConflictException(dashboardId);
             }
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize widgets", e);
         }
     }

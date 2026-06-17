@@ -1,10 +1,12 @@
 package com.dashboardplatform.widget;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +25,6 @@ public class WidgetController {
 
     private final WidgetService widgetService;
 
-    @Autowired
     public WidgetController(WidgetService widgetService) {
         this.widgetService = widgetService;
     }
@@ -87,12 +88,29 @@ public class WidgetController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/tables")
+    public List<String> listTables() {
+        return widgetService.listTables();
+    }
+
+    @GetMapping("/tables/{table}/columns")
+    public List<String> listColumns(@PathVariable String table) {
+        return widgetService.listColumns(table);
+    }
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     @PostMapping("/{widgetId}/fetch")
     public ResponseEntity<String> fetchWidgetData(
         @PathVariable UUID dashboardId,
-        @PathVariable UUID widgetId
-    ) {
-        var data = widgetService.fetchWidgetData(dashboardId, widgetId);
+        @PathVariable UUID widgetId,
+        @RequestBody(required = false) Map<String, Object> dataSourceBody
+    ) throws JsonProcessingException {
+        String dataSourceJson = null;
+        if (dataSourceBody != null && !dataSourceBody.isEmpty()) {
+            dataSourceJson = MAPPER.writeValueAsString(dataSourceBody);
+        }
+        var data = widgetService.fetchWidgetData(dashboardId, widgetId, dataSourceJson);
         return ResponseEntity.ok(data);
     }
 }

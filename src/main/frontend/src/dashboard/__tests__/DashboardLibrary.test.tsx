@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 import { DashboardLibrary } from "../DashboardLibrary";
 
@@ -54,7 +55,7 @@ describe("DashboardLibrary", () => {
 
     fetchMock.mockResolvedValueOnce(jsonResponse([serviceOperations, revenuePulse]));
 
-    render(<DashboardLibrary />);
+    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
 
     expect(screen.getByRole("status")).toHaveTextContent(/loading/i);
 
@@ -80,7 +81,7 @@ describe("DashboardLibrary", () => {
   it("shows an empty-library state when the API returns no dashboards", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([]));
 
-    render(<DashboardLibrary />);
+    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
 
     expect(await screen.findByText(/no dashboards yet/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /new dashboard/i })).toBeInTheDocument();
@@ -99,7 +100,7 @@ describe("DashboardLibrary", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([]));
     fetchMock.mockResolvedValueOnce(jsonResponse(createdDashboard, { status: 201 }));
 
-    render(<DashboardLibrary />);
+    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
 
     await screen.findByText(/no dashboards yet/i);
     await user.click(screen.getByRole("button", { name: /new dashboard/i }));
@@ -154,7 +155,7 @@ describe("DashboardLibrary", () => {
       )
     );
 
-    render(<DashboardLibrary />);
+    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
 
     await screen.findByRole("heading", { name: "Service Operations" });
     await user.click(getCard("Service Operations").getByRole("button", { name: /rename/i }));
@@ -197,7 +198,7 @@ describe("DashboardLibrary", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([revenuePulse]));
     fetchMock.mockResolvedValueOnce(jsonResponse(duplicate, { status: 201 }));
 
-    render(<DashboardLibrary />);
+    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
 
     await screen.findByRole("heading", { name: "Revenue Pulse" });
     await user.click(getCard("Revenue Pulse").getByRole("button", { name: /duplicate/i }));
@@ -219,7 +220,7 @@ describe("DashboardLibrary", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([serviceOperations]));
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    render(<DashboardLibrary />);
+    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
 
     await screen.findByRole("heading", { name: "Service Operations" });
     await user.click(getCard("Service Operations").getByRole("button", { name: /delete/i }));
@@ -262,7 +263,7 @@ describe("DashboardLibrary", () => {
       )
     );
 
-    render(<DashboardLibrary />);
+    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
 
     await screen.findByRole("heading", { name: "Revenue Pulse" });
     await user.click(getCard("Revenue Pulse").getByRole("button", { name: /duplicate/i }));

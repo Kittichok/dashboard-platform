@@ -1,12 +1,25 @@
-export type WidgetType = 'table' | 'chart' | 'metric' | 'text';
+export type WidgetType = 'table' | 'chart' | 'metric' | 'text' | 'raw_json' | 'json_preview';
 
-export interface DataSource {
+export type WidgetFetchResult =
+  | { ok: true; data: unknown }
+  | { ok: false; status: number };
+
+export interface RestDataSource {
   type: 'rest';
   url: string;
   method: 'GET' | 'POST';
   headers: Record<string, string>;
   body: string | null;
 }
+
+export interface TableDataSource {
+  type: 'table';
+  table: string;
+  columns: string[];
+  limit: number | null;
+}
+
+export type DataSource = RestDataSource | TableDataSource;
 
 export interface Widget {
   id: string;
@@ -27,6 +40,6 @@ export interface WidgetInput {
   y: number;
   w: number;
   h: number;
-  displayConfig?: Record<string, unknown>;
-  dataSource?: DataSource;
+  displayConfig?: Record<string, unknown> | null;
+  dataSource?: DataSource | null;
 }

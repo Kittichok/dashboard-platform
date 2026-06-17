@@ -5,6 +5,8 @@ import com.dashboardplatform.dashboard.DashboardVersionConflictException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetFetchException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetNotFoundException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetValidationException;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -24,16 +27,18 @@ public class WidgetService {
     private final WidgetRepository widgetRepository;
     private final RestClient restClient;
     private final Supplier<UUID> uuidSupplier;
+    private final JdbcTemplate jdbcTemplate;
 
     @Autowired
-    public WidgetService(WidgetRepository widgetRepository) {
-        this(widgetRepository, RestClient.builder().build(), UUID::randomUUID);
+    public WidgetService(WidgetRepository widgetRepository, JdbcTemplate jdbcTemplate) {
+        this(widgetRepository, RestClient.builder().build(), UUID::randomUUID, jdbcTemplate);
     }
 
-    WidgetService(WidgetRepository widgetRepository, RestClient restClient, Supplier<UUID> uuidSupplier) {
+    WidgetService(WidgetRepository widgetRepository, RestClient restClient, Supplier<UUID> uuidSupplier, JdbcTemplate jdbcTemplate) {
         this.widgetRepository = widgetRepository;
         this.restClient = restClient;
         this.uuidSupplier = uuidSupplier;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public List<Widget> listWidgets(UUID dashboardId) {
@@ -113,8 +118,29 @@ public class WidgetService {
         widgetRepository.save(dashboardId, dashboardVersion, widgets);
     }
 
-    public String fetchWidgetData(UUID dashboardId, UUID widgetId) {
+    public List<String> listTables() {
+        return jdbcTemplate.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_history' ORDER BY name",
+            (rs, rowNum) -> rs.getString("name")
+        );
+    }
+
+    public List<String> listColumns(String table) {
+        var validTables = listTables();
+        if (!validTables.contains(table)) {
+            throw new WidgetFetchException(400, "Unknown table: " + table);
+        }
+        return jdbcTemplate.query(
+            "PRAGMA table_info(\"" + table.replace("\"", "\"\"") + "\")",
+            (rs, rowNum) -> rs.getString("name")
+        );
+    }
+
+    public String fetchWidgetData(UUID dashboardId, UUID widgetId, String dataSourceJsonOverride) {
         ensureDashboardExists(dashboardId);
+        if (dataSourceJsonOverride != null && !dataSourceJsonOverride.isBlank()) {
+            return executeFetch(dataSourceJsonOverride);
+        }
         var widgets = widgetRepository.findAll(dashboardId);
         var widget = widgets.stream()
             .filter(w -> w.id().equals(widgetId))
@@ -130,7 +156,11 @@ public class WidgetService {
 
     private String executeFetch(String dataSourceJson) {
         try {
-            var ds = parseDataSource(dataSourceJson);
+            var mapper = new ObjectMapper();
+            var ds = mapper.readValue(dataSourceJson, DataSource.class);
+            if ("table".equals(ds.type())) {
+                return executeTableFetch(ds, mapper);
+            }
             var method = "POST".equalsIgnoreCase(ds.method()) ? HttpMethod.POST : HttpMethod.GET;
             var request = restClient.method(method)
                 .uri(ds.url())
@@ -151,11 +181,42 @@ public class WidgetService {
         }
     }
 
+    private String executeTableFetch(DataSource ds, ObjectMapper mapper) throws Exception {
+        if (ds.table() == null || ds.table().isBlank()) {
+            throw new WidgetFetchException(400, "Table name is required.");
+        }
+        if (ds.columns() == null || ds.columns().isEmpty()) {
+            throw new WidgetFetchException(400, "At least one column must be selected.");
+        }
+        var validTables = listTables();
+        if (!validTables.contains(ds.table())) {
+            throw new WidgetFetchException(400, "Invalid table: " + ds.table());
+        }
+        var validColumnNames = listColumns(ds.table());
+        var validSet = java.util.Set.copyOf(validColumnNames);
+        for (var col : ds.columns()) {
+            if (!validSet.contains(col)) {
+                throw new WidgetFetchException(400, "Invalid column: " + col);
+            }
+        }
+        var quotedCols = ds.columns().stream().map(c -> "\"" + c.replace("\"", "\"\"") + "\"").toList();
+        var sql = "SELECT " + String.join(", ", quotedCols) + " FROM \"" + ds.table().replace("\"", "\"\"") + "\" ORDER BY rowid";
+        if (ds.limit() != null && ds.limit() > 0) {
+            sql += " LIMIT " + ds.limit();
+        }
+        var rows = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            var row = new LinkedHashMap<String, Object>();
+            for (var col : ds.columns()) {
+                row.put(col, rs.getObject(col));
+            }
+            return row;
+        });
+        return mapper.writeValueAsString(rows);
+    }
+
     private DataSource parseDataSource(String dataSourceJson) {
-        // Simple JSON parsing without Jackson dependency in service
-        // Data source shape: { "type":"rest", "url":"...", "method":"GET|POST", "headers":{}, "body":null }
         try {
-            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var mapper = new ObjectMapper();
             return mapper.readValue(dataSourceJson, DataSource.class);
         } catch (Exception e) {
             throw new WidgetFetchException(400, "Invalid data source configuration");
@@ -187,6 +248,8 @@ public class WidgetService {
         return errors;
     }
 
-    private record DataSource(String type, String url, String method, Map<String, String> headers, String body) {
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record DataSource(String type, String url, String method, Map<String, String> headers, String body,
+                              String table, List<String> columns, Integer limit) {
     }
 }

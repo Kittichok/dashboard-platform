@@ -5,6 +5,7 @@ import com.dashboardplatform.dashboard.DashboardValidationException;
 import com.dashboardplatform.dashboard.DashboardVersionConflictException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetFetchException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetNotFoundException;
+import com.dashboardplatform.widget.WidgetExceptions.WidgetValidationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -52,6 +53,13 @@ public class ApiExceptionHandler {
             .body(ApiError.of(
                 "dashboard_version_conflict",
                 "The dashboard changed after it was loaded."));
+    }
+
+    @ExceptionHandler(WidgetValidationException.class)
+    public ResponseEntity<ApiError> handleWidgetValidation(
+        WidgetValidationException exception
+    ) {
+        return ResponseEntity.badRequest().body(ApiError.validation(exception.fieldErrors()));
     }
 
     @ExceptionHandler(WidgetNotFoundException.class)
