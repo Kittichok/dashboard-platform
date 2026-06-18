@@ -4,7 +4,8 @@ import { Link, useParams } from "react-router-dom";
 import { getDashboard } from "../dashboard/dashboardApi";
 import type { ApiFailure, Dashboard, NetworkFailure } from "../dashboard/types";
 import { Icon } from "../dashboard/icons";
-import { fetchWidgetData, listWidgets } from "./widgetApi";
+import { listWidgets } from "./widgetApi";
+import { runWidgetRequests } from "./widgetRequestRunner";
 import { WidgetRenderer } from "./WidgetRenderer";
 import type { Widget, WidgetFetchResult } from "./types";
 
@@ -28,7 +29,9 @@ export function DashboardViewer() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [widgetData, setWidgetData] = useState<Record<string, WidgetFetchResult>>({});
+  const [widgetLoading, setWidgetLoading] = useState<Record<string, boolean>>({});
   const [dataLoading, setDataLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ViewerError | null>(null);
 
@@ -55,22 +58,42 @@ export function DashboardViewer() {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!id || widgets.length === 0) return;
-    let cancelled = false;
-    setDataLoading(true);
-    (async () => {
-      const results: Record<string, WidgetFetchResult> = {};
-      await Promise.all(widgets.map(async (w) => {
-        if (!w.dataSource) return;
-        results[w.id] = await fetchWidgetData(id, w.id);
-      }));
-      if (!cancelled) {
-        setWidgetData(results);
-        setDataLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+  const runRequests = useCallback(async () => {
+    if (!id) {
+      return;
+    }
+
+    const requestableWidgetIds = widgets
+      .filter((widget) => widget.dataSource)
+      .map((widget) => widget.id);
+    const loadingState = Object.fromEntries(
+      requestableWidgetIds.map((widgetId) => [widgetId, true])
+    ) as Record<string, boolean>;
+
+    setHasSearched(true);
+    setDataLoading(requestableWidgetIds.length > 0);
+    setWidgetLoading(loadingState);
+    setWidgetData({});
+
+    try {
+      await runWidgetRequests({
+        dashboardId: id,
+        widgets,
+        onWidgetResult: (widgetId, result) => {
+          setWidgetData((current) => ({
+            ...current,
+            [widgetId]: result
+          }));
+          setWidgetLoading((current) => ({
+            ...current,
+            [widgetId]: false
+          }));
+        }
+      });
+    } finally {
+      setDataLoading(false);
+      setWidgetLoading({});
+    }
   }, [id, widgets]);
 
   if (loading) {
@@ -114,9 +137,27 @@ export function DashboardViewer() {
             <p className="eyebrow">Dashboard</p>
             <h1>{dashboard?.name ?? "Dashboard"}</h1>
           </div>
-          <Link to={`/dashboards/${id}`} className="button primary" style={{ textDecoration: "none" }}>
-            <Icon name="edit" /> Edit Dashboard
-          </Link>
+          <div className="header-actions">
+            <button
+              type="button"
+              className="button primary"
+              onClick={runRequests}
+              disabled={dataLoading || widgets.length === 0}
+            >
+              <Icon name="search" /> Search
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={runRequests}
+              disabled={dataLoading || !hasSearched || widgets.length === 0}
+            >
+              <Icon name="refresh" /> Refresh
+            </button>
+            <Link to={`/dashboards/${id}`} className="button secondary" style={{ textDecoration: "none" }}>
+              <Icon name="edit" /> Edit Dashboard
+            </Link>
+          </div>
         </header>
 
         {error ? (
@@ -158,6 +199,9 @@ export function DashboardViewer() {
                 }}
               >
                 <h3 style={{ margin: 0, fontSize: "14px", marginBottom: "8px" }}>{widget.title}</h3>
+                {widgetLoading[widget.id] ? (
+                  <div className="widget-status" role="status">Loading...</div>
+                ) : null}
                 <WidgetRenderer widget={widget} fetchData={widgetData[widget.id]} />
               </article>
             ))
