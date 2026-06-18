@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { AppSidebar } from "../dashboard/AppSidebar";
 import { getDashboard } from "../dashboard/dashboardApi";
 import type { ApiFailure, Dashboard, NetworkFailure } from "../dashboard/types";
 import { Icon } from "../dashboard/icons";
@@ -43,6 +44,7 @@ export function DashboardEditor() {
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
   const [editOperationMessage, setEditOperationMessage] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dragState, setDragState] = useState<{
     widgetId: string;
     origX: number;
@@ -221,30 +223,11 @@ export function DashboardEditor() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">DP</span>
-          <span>
-            <strong>Dashboard</strong>
-            <small>Platform</small>
-          </span>
-        </div>
-        <nav aria-label="Workspace">
-          <p className="nav-label">Workspace</p>
-          <Link to="/" className="nav-item" style={{ textDecoration: "none" }}>
-            <Icon name="dashboard" />
-            Dashboard Library
-          </Link>
-        </nav>
-        <div className="sidebar-footer">
-          <span className="network-dot" />
-          <div>
-            <strong>Private workspace</strong>
-            <small>Shared visitor access</small>
-          </div>
-        </div>
-      </aside>
+    <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+      <AppSidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((current) => !current)}
+      />
       <main className="main">
         <header className="page-header">
           <div>
@@ -352,7 +335,9 @@ export function DashboardEditor() {
                       </div>
                     )}
                   </div>
-                  <WidgetRenderer widget={widget} />
+                  <div className="widget-content">
+                    <WidgetRenderer widget={widget} />
+                  </div>
                 </article>
               );
             })

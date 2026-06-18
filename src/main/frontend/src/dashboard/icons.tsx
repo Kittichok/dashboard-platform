@@ -1,4 +1,4 @@
-type IconName = "dashboard" | "search" | "refresh" | "plus" | "copy" | "edit" | "trash" | "close";
+type IconName = "dashboard" | "search" | "refresh" | "plus" | "copy" | "edit" | "trash" | "close" | "collapse" | "expand";
 
 const paths: Record<IconName, string> = {
   dashboard:
@@ -9,7 +9,9 @@ const paths: Record<IconName, string> = {
   copy: "M8 8h10v10H8z M6 14H5a1 1 0 0 1-1-1V5h8a1 1 0 0 1 1 1v1",
   edit: "M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z",
   trash: "M4 7h16 M10 11v6 M14 11v6 M6 7l1 14h10l1-14 M9 7V4h6v3",
-  close: "m6 6 12 12M18 6 6 18"
+  close: "m6 6 12 12M18 6 6 18",
+  collapse: "M15 6l-6 6 6 6",
+  expand: "M9 6l6 6-6 6"
 };
 
 export function Icon({ name }: { name: IconName }) {

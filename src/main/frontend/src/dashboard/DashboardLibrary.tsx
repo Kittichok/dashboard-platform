@@ -8,6 +8,7 @@ import {
   listDashboards,
   renameDashboard
 } from "./dashboardApi";
+import { AppSidebar } from "./AppSidebar";
 import { CreateDashboardDialog } from "./CreateDashboardDialog";
 import { DashboardCard } from "./DashboardCard";
 import { DeleteDashboardDialog } from "./DeleteDashboardDialog";
@@ -30,6 +31,7 @@ export function DashboardLibrary() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [operationMessage, setOperationMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -132,30 +134,12 @@ export function DashboardLibrary() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">DP</span>
-          <span>
-            <strong>Dashboard</strong>
-            <small>Platform</small>
-          </span>
-        </div>
-        <nav aria-label="Workspace">
-          <p className="nav-label">Workspace</p>
-          <span className="nav-item active">
-            <Icon name="dashboard" />
-            Dashboard Library
-          </span>
-        </nav>
-        <div className="sidebar-footer">
-          <span className="network-dot" />
-          <div>
-            <strong>Private workspace</strong>
-            <small>Shared visitor access</small>
-          </div>
-        </div>
-      </aside>
+    <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+      <AppSidebar
+        activeItem="library"
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((current) => !current)}
+      />
       <main className="main">
         <header className="page-header">
           <div>

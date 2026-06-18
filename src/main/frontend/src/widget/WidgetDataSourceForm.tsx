@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 
+import {
+  extractSelectableFields,
+  selectedFieldsFromConfig,
+  withSelectedFields
+} from "./displayConfig";
+import { WidgetFieldSelector } from "./WidgetFieldSelector";
 import type { DataSource, Widget } from "./types";
 import { fetchWidgetData, listColumns, listTables } from "./widgetApi";
 import { WidgetFetchResult } from "./WidgetFetchResult";
@@ -7,17 +13,29 @@ import { WidgetFetchResult } from "./WidgetFetchResult";
 type WidgetDataSourceFormProps = {
   dashboardId: string;
   widget: Widget;
+  displayConfig?: Record<string, unknown> | null;
   onChange?: (dataSource: DataSource) => void;
+  onDisplayConfigChange?: (displayConfig: Record<string, unknown> | null) => void;
 };
 
-interface WidgetFetchResultData {
-  fetchError?: boolean;
-  status?: number;
-  body?: string;
-  [key: string]: unknown;
+type WidgetFetchResultData =
+  | { ok: true; data: unknown }
+  | { ok: false; status: number }
+  | { fetchError: true; status: number; body: string };
+
+function isSuccessfulFetchResult(
+  result: WidgetFetchResultData | null
+): result is { ok: true; data: unknown } {
+  return Boolean(result && "ok" in result && result.ok === true);
 }
 
-export function WidgetDataSourceForm({ dashboardId, widget, onChange }: WidgetDataSourceFormProps) {
+export function WidgetDataSourceForm({
+  dashboardId,
+  widget,
+  displayConfig,
+  onChange,
+  onDisplayConfigChange
+}: WidgetDataSourceFormProps) {
   const initType = widget.dataSource?.type ?? "rest";
   const [sourceType, setSourceType] = useState<"rest" | "table">(initType);
   const [url, setUrl] = useState(widget.dataSource?.type === "rest" ? widget.dataSource.url : "");
@@ -42,6 +60,9 @@ export function WidgetDataSourceForm({ dashboardId, widget, onChange }: WidgetDa
   const [tables, setTables] = useState<string[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [fetchResult, setFetchResult] = useState<WidgetFetchResultData | null>(null);
+  const selectedDisplayFields = selectedFieldsFromConfig(displayConfig ?? widget.displayConfig);
+  const selectableFields = isSuccessfulFetchResult(fetchResult) ? extractSelectableFields(fetchResult.data) : [];
+  const supportsFieldSelection = widget.type === "table" || widget.type === "json_preview";
 
   useEffect(() => {
     listTables(dashboardId).then(setTables).catch(() => {});
@@ -84,6 +105,10 @@ export function WidgetDataSourceForm({ dashboardId, widget, onChange }: WidgetDa
     setSelectedColumns((prev) =>
       prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
     );
+  }
+
+  function updateDisplayFields(fields: string[]) {
+    onDisplayConfigChange?.(withSelectedFields(displayConfig ?? widget.displayConfig, fields));
   }
 
   function currentDataSource(): DataSource {
@@ -227,6 +252,13 @@ export function WidgetDataSourceForm({ dashboardId, widget, onChange }: WidgetDa
         Test Fetch
       </button>
       {fetchResult ? <WidgetFetchResult result={fetchResult} /> : null}
+      {supportsFieldSelection ? (
+        <WidgetFieldSelector
+          fields={selectableFields}
+          selectedFields={selectedDisplayFields}
+          onChange={updateDisplayFields}
+        />
+      ) : null}
     </fieldset>
   );
 }

@@ -63,6 +63,24 @@ const notesWidget = {
   dataSource: null
 };
 
+const jsonPreviewWidget = {
+  id: "widget-3",
+  title: "Users",
+  type: "json_preview",
+  x: 0,
+  y: 2,
+  w: 3,
+  h: 2,
+  displayConfig: null,
+  dataSource: {
+    type: "rest",
+    url: "https://api.example.test/users",
+    method: "GET",
+    headers: {},
+    body: null
+  }
+};
+
 describe("DashboardEditor", () => {
   const fetchMock = vi.fn();
 
@@ -188,6 +206,52 @@ describe("DashboardEditor", () => {
           h: 2,
           displayConfigJson: JSON.stringify({ value: "98.4" }),
           dataSourceJson: JSON.stringify(latencyWidget.dataSource)
+        })
+      })
+    );
+  });
+
+  it("saves selected display fields from a tested JSON Preview data source", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([jsonPreviewWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: 1, name: "Alice", email: "alice@example.test" },
+      { id: 2, name: "Grace", email: "grace@example.test" }
+    ]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      ...jsonPreviewWidget,
+      displayConfig: { selectedFields: ["name", "email"] }
+    }));
+
+    renderEditor();
+
+    const card = (await screen.findByRole("heading", { name: "Users" })).closest("article");
+    expect(card).not.toBeNull();
+    await user.click(card!);
+
+    const panel = screen.getByRole("dialog", { name: /edit widget/i });
+    await user.click(within(panel).getByRole("button", { name: /test fetch/i }));
+
+    await user.click(await within(panel).findByRole("checkbox", { name: "name" }));
+    await user.click(within(panel).getByRole("checkbox", { name: "email" }));
+    await user.click(within(panel).getByRole("button", { name: /save/i }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "/api/dashboards/dashboard-1/widgets/widget-3?dashboardVersion=4",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          title: "Users",
+          type: "json_preview",
+          x: 0,
+          y: 2,
+          w: 3,
+          h: 2,
+          displayConfigJson: JSON.stringify({ selectedFields: ["name", "email"] }),
+          dataSourceJson: JSON.stringify(jsonPreviewWidget.dataSource)
         })
       })
     );

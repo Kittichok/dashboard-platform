@@ -114,6 +114,38 @@ describe("DashboardViewer search and refresh", () => {
     expect(await screen.findByText("123.0")).toBeInTheDocument();
   });
 
+  it("sends header variable input values with searched widget requests", async () => {
+    const user = userEvent.setup();
+    const variableWidget = {
+      ...latencyWidget,
+      dataSource: {
+        ...latencyWidget.dataSource,
+        url: "https://api.example.test/latency/{{userId}}"
+      }
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([variableWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ value: "123.0" }));
+
+    renderViewer();
+
+    await screen.findByRole("heading", { name: "Latency" });
+    await user.type(screen.getByLabelText("userId variable"), "42");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/dashboards/dashboard-1/widgets/widget-1/fetch",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          ...variableWidget.dataSource,
+          url: "https://api.example.test/latency/42"
+        })
+      })
+    );
+  });
+
   it("enables Refresh after Search and reruns the last searched request set", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));

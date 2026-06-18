@@ -26,6 +26,9 @@ export function WidgetEditPanel({
   const [y, setY] = useState(widget.y);
   const [w, setW] = useState(widget.w);
   const [h, setH] = useState(widget.h);
+  const [displayConfig, setDisplayConfig] = useState<Record<string, unknown> | null>(
+    widget.displayConfig
+  );
   const [dataSource, setDataSource] = useState<DataSource | undefined>(
     widget.dataSource ?? undefined
   );
@@ -39,7 +42,7 @@ export function WidgetEditPanel({
       y,
       w,
       h,
-      displayConfig: widget.displayConfig,
+      displayConfig,
       dataSource: dataSource ?? null
     });
   }
@@ -93,7 +96,13 @@ export function WidgetEditPanel({
               <input type="number" min={1} value={h} onChange={(e) => setH(Number(e.target.value))} />
             </label>
           </div>
-          <WidgetDataSourceForm dashboardId={dashboardId} widget={widget} onChange={setDataSource} />
+          <WidgetDataSourceForm
+            dashboardId={dashboardId}
+            widget={widget}
+            displayConfig={displayConfig}
+            onChange={setDataSource}
+            onDisplayConfigChange={setDisplayConfig}
+          />
           {operationMessage ? <p className="form-message">{operationMessage}</p> : null}
           <div className="dialog-actions">
             <button type="button" className="button secondary" onClick={onClose}>Cancel</button>

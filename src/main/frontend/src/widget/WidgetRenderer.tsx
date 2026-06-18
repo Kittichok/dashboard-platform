@@ -1,3 +1,8 @@
+import {
+  filterDataToFields,
+  legacyColumnsFromConfig,
+  selectedFieldsFromConfig
+} from "./displayConfig";
 import type { Widget, WidgetFetchResult } from "./types";
 
 type WidgetRendererProps = {
@@ -40,7 +45,8 @@ function NoDataDisplay() {
 
 function TableWidget({ widget, fetchData }: WidgetRendererProps) {
   if (fetchData === undefined) {
-    const columns = (widget.displayConfig?.columns as string[]) ?? [];
+    const selectedFields = selectedFieldsFromConfig(widget.displayConfig);
+    const columns = selectedFields.length > 0 ? selectedFields : legacyColumnsFromConfig(widget.displayConfig);
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -56,7 +62,8 @@ function TableWidget({ widget, fetchData }: WidgetRendererProps) {
     return <NoDataDisplay />;
   }
 
-  const columns = (widget.displayConfig?.columns as string[]) ?? [];
+  const selectedFields = selectedFieldsFromConfig(widget.displayConfig);
+  const columns = selectedFields.length > 0 ? selectedFields : legacyColumnsFromConfig(widget.displayConfig);
   const rows = Array.isArray(d) ? d as Record<string, unknown>[] : [];
   return (
     <div style={{ overflowX: "auto" }}>
@@ -280,7 +287,11 @@ function JsonPreviewWidget({ widget, fetchData }: WidgetRendererProps) {
         fontFamily: "inherit",
         color: "var(--text)"
       }}>
-        {JSON.stringify(fetchData.data, null, 2)}
+        {JSON.stringify(
+          filterDataToFields(fetchData.data, selectedFieldsFromConfig(widget.displayConfig)),
+          null,
+          2
+        )}
       </pre>
     </div>
   );

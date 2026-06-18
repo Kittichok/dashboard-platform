@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { AppSidebar } from "../dashboard/AppSidebar";
 import { getDashboard } from "../dashboard/dashboardApi";
 import type { ApiFailure, Dashboard, NetworkFailure } from "../dashboard/types";
 import { Icon } from "../dashboard/icons";
 import { listWidgets } from "./widgetApi";
-import { runWidgetRequests } from "./widgetRequestRunner";
+import { extractDataSourceVariableNames, runWidgetRequests } from "./widgetRequestRunner";
 import { WidgetRenderer } from "./WidgetRenderer";
 import type { Widget, WidgetFetchResult } from "./types";
 
@@ -32,8 +33,10 @@ export function DashboardViewer() {
   const [widgetLoading, setWidgetLoading] = useState<Record<string, boolean>>({});
   const [dataLoading, setDataLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ViewerError | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -58,6 +61,8 @@ export function DashboardViewer() {
     load();
   }, [load]);
 
+  const variableNames = useMemo(() => extractDataSourceVariableNames(widgets), [widgets]);
+
   const runRequests = useCallback(async () => {
     if (!id) {
       return;
@@ -79,6 +84,7 @@ export function DashboardViewer() {
       await runWidgetRequests({
         dashboardId: id,
         widgets,
+        variables: variableValues,
         onWidgetResult: (widgetId, result) => {
           setWidgetData((current) => ({
             ...current,
@@ -94,7 +100,7 @@ export function DashboardViewer() {
       setDataLoading(false);
       setWidgetLoading({});
     }
-  }, [id, widgets]);
+  }, [id, variableValues, widgets]);
 
   if (loading) {
     return (
@@ -107,30 +113,11 @@ export function DashboardViewer() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">DP</span>
-          <span>
-            <strong>Dashboard</strong>
-            <small>Platform</small>
-          </span>
-        </div>
-        <nav aria-label="Workspace">
-          <p className="nav-label">Workspace</p>
-          <Link to="/" className="nav-item" style={{ textDecoration: "none" }}>
-            <Icon name="dashboard" />
-            Dashboard Library
-          </Link>
-        </nav>
-        <div className="sidebar-footer">
-          <span className="network-dot" />
-          <div>
-            <strong>Private workspace</strong>
-            <small>Shared visitor access</small>
-          </div>
-        </div>
-      </aside>
+    <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+      <AppSidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((current) => !current)}
+      />
       <main className="main">
         <header className="page-header">
           <div>
@@ -138,6 +125,23 @@ export function DashboardViewer() {
             <h1>{dashboard?.name ?? "Dashboard"}</h1>
           </div>
           <div className="header-actions">
+            {variableNames.length > 0 ? (
+              <div className="variable-inputs" aria-label="Dashboard variables">
+                {variableNames.map((name) => (
+                  <label key={name} className="variable-field">
+                    <span>{name}</span>
+                    <input
+                      aria-label={`${name} variable`}
+                      value={variableValues[name] ?? ""}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setVariableValues((current) => ({ ...current, [name]: value }));
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : null}
             <button
               type="button"
               className="button primary"
@@ -202,7 +206,9 @@ export function DashboardViewer() {
                 {widgetLoading[widget.id] ? (
                   <div className="widget-status" role="status">Loading...</div>
                 ) : null}
-                <WidgetRenderer widget={widget} fetchData={widgetData[widget.id]} />
+                <div className="widget-content">
+                  <WidgetRenderer widget={widget} fetchData={widgetData[widget.id]} />
+                </div>
               </article>
             ))
           )}

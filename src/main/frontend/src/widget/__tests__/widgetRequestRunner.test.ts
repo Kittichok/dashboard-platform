@@ -138,4 +138,30 @@ describe("runWidgetRequests", () => {
 
     expect(fetchWidgetData).toHaveBeenCalledTimes(1);
   });
+
+  it("replaces rest data source variable placeholders before fetching", async () => {
+    const source = {
+      type: "rest" as const,
+      url: "https://api.example.test/users/{{userId}}?team={{team}}",
+      method: "POST" as const,
+      headers: { "X-Team": "{{team}}" },
+      body: "{\"owner\":\"{{userId}}\"}"
+    };
+    const fetchWidgetData = vi.fn().mockResolvedValueOnce(ok({ total: 12 }));
+
+    await runWidgetRequests({
+      dashboardId: "dashboard-1",
+      widgets: [widget({ id: "widget-1", dataSource: source })],
+      variables: { userId: "42", team: "ops" },
+      fetchWidgetData
+    });
+
+    expect(fetchWidgetData).toHaveBeenCalledWith("dashboard-1", "widget-1", {
+      type: "rest",
+      url: "https://api.example.test/users/42?team=ops",
+      method: "POST",
+      headers: { "X-Team": "ops" },
+      body: "{\"owner\":\"42\"}"
+    });
+  });
 });

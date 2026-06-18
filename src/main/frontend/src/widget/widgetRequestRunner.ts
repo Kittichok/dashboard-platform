@@ -10,6 +10,7 @@ type FetchWidgetData = (
 type RunWidgetRequestsInput = {
   dashboardId: string;
   widgets: Widget[];
+  variables?: Record<string, string>;
   fetchWidgetData?: FetchWidgetData;
   onWidgetResult?: (widgetId: string, result: WidgetFetchResult) => void;
 };
@@ -17,6 +18,7 @@ type RunWidgetRequestsInput = {
 export async function runWidgetRequests({
   dashboardId,
   widgets,
+  variables = {},
   fetchWidgetData = defaultFetchWidgetData,
   onWidgetResult
 }: RunWidgetRequestsInput): Promise<Record<string, WidgetFetchResult>> {
@@ -27,8 +29,10 @@ export async function runWidgetRequests({
     if (!widget.dataSource) {
       continue;
     }
-    const key = stableStringify(widget.dataSource);
-    groups.set(key, [...(groups.get(key) ?? []), widget]);
+    const resolved = resolveDataSourceVariables(widget.dataSource, variables);
+    const resolvedWidget = { ...widget, dataSource: resolved };
+    const key = stableStringify(resolved);
+    groups.set(key, [...(groups.get(key) ?? []), resolvedWidget]);
   }
 
   await Promise.all(
@@ -47,6 +51,57 @@ export async function runWidgetRequests({
   );
 
   return results;
+}
+
+export function extractDataSourceVariableNames(widgets: Widget[]): string[] {
+  const names = new Set<string>();
+  for (const widget of widgets) {
+    const source = widget.dataSource;
+    if (!source || source.type !== "rest") {
+      continue;
+    }
+    collectVariableNames(source.url, names);
+    Object.entries(source.headers).forEach(([key, value]) => {
+      collectVariableNames(key, names);
+      collectVariableNames(value, names);
+    });
+    if (source.body) {
+      collectVariableNames(source.body, names);
+    }
+  }
+  return Array.from(names).sort();
+}
+
+function resolveDataSourceVariables(dataSource: Widget["dataSource"], variables: Record<string, string>): Widget["dataSource"] {
+  if (!dataSource || dataSource.type !== "rest") {
+    return dataSource;
+  }
+
+  return {
+    ...dataSource,
+    url: replaceVariables(dataSource.url, variables),
+    headers: Object.fromEntries(
+      Object.entries(dataSource.headers).map(([key, value]) => [
+        replaceVariables(key, variables),
+        replaceVariables(value, variables)
+      ])
+    ),
+    body: dataSource.body === null ? null : replaceVariables(dataSource.body, variables)
+  };
+}
+
+function collectVariableNames(value: string, names: Set<string>) {
+  for (const match of value.matchAll(variablePattern())) {
+    names.add(match[1]);
+  }
+}
+
+function replaceVariables(value: string, variables: Record<string, string>): string {
+  return value.replace(variablePattern(), (_match, name: string) => variables[name] ?? "");
+}
+
+function variablePattern(): RegExp {
+  return /{{\s*([A-Za-z0-9_.-]+)\s*}}/g;
 }
 
 function stableStringify(value: unknown): string {

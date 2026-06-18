@@ -104,6 +104,45 @@ describe("WidgetRenderer response states", () => {
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
+  it("table widget displays only selected response fields", () => {
+    render(
+      <WidgetRenderer
+        widget={widget({ type: "table", displayConfig: { selectedFields: ["name"] } })}
+        fetchData={ok([{ id: 1, name: "Alice", secret: "hidden" }])}
+      />
+    );
+
+    expect(screen.getByRole("columnheader", { name: "name" })).toBeInTheDocument();
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "id" })).not.toBeInTheDocument();
+    expect(screen.queryByText("hidden")).not.toBeInTheDocument();
+  });
+
+  it("table widget keeps legacy columns as fallback", () => {
+    render(
+      <WidgetRenderer
+        widget={widget({ type: "table", displayConfig: { columns: ["name"] } })}
+        fetchData={ok([{ id: 1, name: "Alice" }])}
+      />
+    );
+
+    expect(screen.getByRole("columnheader", { name: "name" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "id" })).not.toBeInTheDocument();
+  });
+
+  it("json_preview widget displays only selected response fields", () => {
+    render(
+      <WidgetRenderer
+        widget={widget({ type: "json_preview", displayConfig: { selectedFields: ["name"] } })}
+        fetchData={ok({ id: 1, name: "Alice", secret: "hidden" })}
+      />
+    );
+
+    expect(screen.getByText(/"name": "Alice"/)).toBeInTheDocument();
+    expect(screen.queryByText(/"id": 1/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
+  });
+
   it("does not display No data when data is present", () => {
     render(
       <WidgetRenderer

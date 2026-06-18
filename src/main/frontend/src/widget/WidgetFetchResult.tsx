@@ -1,9 +1,9 @@
 type WidgetFetchResultProps = {
-  result: Record<string, unknown>;
+  result: unknown;
 };
 
 export function WidgetFetchResult({ result }: WidgetFetchResultProps) {
-  if (result.fetchError === true) {
+  if (isFetchError(result)) {
     return (
       <div style={{
         marginTop: "8px",
@@ -43,4 +43,8 @@ export function WidgetFetchResult({ result }: WidgetFetchResultProps) {
       {JSON.stringify(result, null, 2)}
     </pre>
   );
+}
+
+function isFetchError(result: unknown): result is { fetchError: true; status?: number; body?: string } {
+  return typeof result === "object" && result !== null && "fetchError" in result;
 }
