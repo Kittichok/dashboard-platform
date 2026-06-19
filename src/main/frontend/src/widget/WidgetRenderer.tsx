@@ -1,4 +1,5 @@
 import {
+  fieldValueAtPath,
   filterDataToFields,
   legacyColumnsFromConfig,
   selectedFieldsFromConfig
@@ -41,6 +42,16 @@ function NoDataDisplay() {
       No data
     </div>
   );
+}
+
+function formatTableCellValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "\u2014";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
 }
 
 function TableWidget({ widget, fetchData }: WidgetRendererProps) {
@@ -88,7 +99,7 @@ function TableWidget({ widget, fetchData }: WidgetRendererProps) {
             <tr key={i}>
               {(columns.length > 0 ? columns : Object.keys(rows[0])).map((col) => (
                 <td key={col} style={{ padding: "8px", borderBottom: "1px solid var(--line)" }}>
-                  {String(row[col] ?? "")}
+                  {formatTableCellValue(fieldValueAtPath(row, col))}
                 </td>
               ))}
             </tr>

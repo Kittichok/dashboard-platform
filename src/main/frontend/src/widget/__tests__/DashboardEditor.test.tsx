@@ -219,18 +219,22 @@ describe("DashboardEditor", () => {
     );
   });
 
-  it("saves selected display fields from a tested JSON Preview data source", async () => {
+  it("saves nested selected display fields from a tested JSON Preview data source", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([jsonPreviewWidget]));
     fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
-    fetchMock.mockResolvedValueOnce(jsonResponse([
-      { id: 1, name: "Alice", email: "alice@example.test" },
-      { id: 2, name: "Grace", email: "grace@example.test" }
-    ]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      name: "Adeel Solangi",
+      language: "Sindhi",
+      detail: {
+        obj: { key: "value" },
+        name: "test"
+      }
+    }));
     fetchMock.mockResolvedValueOnce(jsonResponse({
       ...jsonPreviewWidget,
-      displayConfig: { selectedFields: ["name", "email"] }
+      displayConfig: { selectedFields: ["detail.obj.key", "detail.name"] }
     }));
 
     renderEditor();
@@ -242,8 +246,8 @@ describe("DashboardEditor", () => {
     const panel = screen.getByRole("dialog", { name: /edit widget/i });
     await user.click(within(panel).getByRole("button", { name: /test fetch/i }));
 
-    await user.click(await within(panel).findByRole("checkbox", { name: "name" }));
-    await user.click(within(panel).getByRole("checkbox", { name: "email" }));
+    await user.click(await within(panel).findByRole("checkbox", { name: "detail.obj.key" }));
+    await user.click(within(panel).getByRole("checkbox", { name: "detail.name" }));
     await user.click(within(panel).getByRole("button", { name: /save/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -258,7 +262,7 @@ describe("DashboardEditor", () => {
           y: 2,
           w: 3,
           h: 2,
-          displayConfigJson: JSON.stringify({ selectedFields: ["name", "email"] }),
+          displayConfigJson: JSON.stringify({ selectedFields: ["detail.obj.key", "detail.name"] }),
           dataSourceJson: JSON.stringify(jsonPreviewWidget.dataSource)
         })
       })

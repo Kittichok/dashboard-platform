@@ -23,6 +23,47 @@ describe("displayConfig helpers", () => {
     ])).toEqual(["id", "name", "email"]);
   });
 
+  it("extracts nested object paths from object responses", () => {
+    expect(extractSelectableFields({
+      name: "Adeel Solangi",
+      language: "Sindhi",
+      detail: {
+        obj: { key: "value" },
+        name: "test"
+      }
+    })).toEqual([
+      "name",
+      "language",
+      "detail",
+      "detail.obj",
+      "detail.obj.key",
+      "detail.name"
+    ]);
+  });
+
+  it("extracts first-seen nested paths from array object responses", () => {
+    expect(extractSelectableFields([
+      {
+        id: 1,
+        detail: {
+          obj: { key: "value" }
+        }
+      },
+      {
+        id: 2,
+        detail: {
+          status: "ok"
+        }
+      }
+    ])).toEqual([
+      "id",
+      "detail",
+      "detail.obj",
+      "detail.obj.key",
+      "detail.status"
+    ]);
+  });
+
   it("does not offer fields for primitive responses", () => {
     expect(extractSelectableFields(null)).toEqual([]);
     expect(extractSelectableFields("ready")).toEqual([]);
@@ -43,6 +84,44 @@ describe("displayConfig helpers", () => {
     ], ["name"])).toEqual([
       { name: "Ada" },
       { name: "Grace" }
+    ]);
+  });
+
+  it("filters object responses to nested selected fields", () => {
+    expect(filterDataToFields({
+      name: "Adeel Solangi",
+      language: "Sindhi",
+      detail: {
+        obj: { key: "value", extra: "ignore" },
+        name: "test"
+      }
+    }, ["detail.obj.key", "detail.name"])).toEqual({
+      detail: {
+        obj: { key: "value" },
+        name: "test"
+      }
+    });
+  });
+
+  it("filters each array row to nested selected fields", () => {
+    expect(filterDataToFields([
+      {
+        id: 1,
+        detail: {
+          obj: { key: "value-1" },
+          name: "first"
+        }
+      },
+      {
+        id: 2,
+        detail: {
+          obj: { key: "value-2" },
+          name: "second"
+        }
+      }
+    ], ["detail.obj.key"])).toEqual([
+      { detail: { obj: { key: "value-1" } } },
+      { detail: { obj: { key: "value-2" } } }
     ]);
   });
 

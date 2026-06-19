@@ -43,24 +43,36 @@ export function extractSelectableFields(data: unknown): string[] {
   const fields: string[] = [];
   const seen = new Set<string>();
 
-  function addField(field: string) {
-    if (!seen.has(field)) {
-      seen.add(field);
-      fields.push(field);
+  function addField(path: string) {
+    if (!seen.has(path)) {
+      seen.add(path);
+      fields.push(path);
+    }
+  }
+
+  function visitRecord(record: Record<string, unknown>, prefix?: string) {
+    for (const [key, value] of Object.entries(record)) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      addField(path);
+
+      if (isRecord(value)) {
+        visitRecord(value, path);
+      }
     }
   }
 
   if (Array.isArray(data)) {
     for (const item of data) {
       if (isRecord(item)) {
-        Object.keys(item).forEach(addField);
+        visitRecord(item);
       }
     }
     return fields;
   }
 
   if (isRecord(data)) {
-    return Object.keys(data);
+    visitRecord(data);
+    return fields;
   }
 
   return [];
@@ -79,14 +91,46 @@ export function filterDataToFields(data: unknown, fields: string[] | undefined):
   return data;
 }
 
+export function fieldValueAtPath(data: unknown, path: string): unknown {
+  const segments = path.split(".");
+  let current: unknown = data;
+
+  for (const segment of segments) {
+    if (!isRecord(current) || !Object.prototype.hasOwnProperty.call(current, segment)) {
+      return undefined;
+    }
+    current = current[segment];
+  }
+
+  return current;
+}
+
 function pickFields(record: Record<string, unknown>, fields: string[]): Record<string, unknown> {
   const picked: Record<string, unknown> = {};
+
   for (const field of fields) {
-    if (Object.prototype.hasOwnProperty.call(record, field)) {
-      picked[field] = record[field];
+    const value = fieldValueAtPath(record, field);
+    if (value !== undefined) {
+      assignPath(picked, field, value);
     }
   }
+
   return picked;
+}
+
+function assignPath(target: Record<string, unknown>, path: string, value: unknown) {
+  const segments = path.split(".");
+  let current = target;
+
+  for (const segment of segments.slice(0, -1)) {
+    const next = current[segment];
+    if (!isRecord(next)) {
+      current[segment] = {};
+    }
+    current = current[segment] as Record<string, unknown>;
+  }
+
+  current[segments[segments.length - 1]] = value;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
