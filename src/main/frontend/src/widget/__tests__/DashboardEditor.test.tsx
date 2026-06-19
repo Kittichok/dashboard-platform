@@ -165,6 +165,23 @@ describe("DashboardEditor", () => {
     );
   });
 
+  it("shows variable token examples when editing a REST widget", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
+
+    renderEditor();
+
+    const card = (await screen.findByRole("heading", { name: "Latency" })).closest("article");
+    expect(card).not.toBeNull();
+    await user.click(card!);
+
+    expect(screen.getByText("Variable examples")).toBeInTheDocument();
+    expect(screen.getByText(/\{\{region:string\}\}/)).toBeInTheDocument();
+    expect(screen.getByText(/Example URL:/)).toBeInTheDocument();
+  });
+
   it("updates widget position through the edit panel", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));

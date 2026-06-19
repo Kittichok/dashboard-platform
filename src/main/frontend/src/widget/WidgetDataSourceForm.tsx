@@ -143,6 +143,26 @@ export function WidgetDataSourceForm({
 
       {sourceType === "rest" ? (
         <>
+          <div
+            style={{
+              marginBottom: "12px",
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px dashed var(--line)",
+              background: "var(--surface-warm)",
+              fontSize: "12px",
+              color: "var(--muted)",
+            }}
+          >
+            <strong style={{ display: "block", marginBottom: "6px", color: "var(--text)" }}>
+              Variable examples
+            </strong>
+            <div>String: {"{{region}}"} or {"{{region:string}}"}</div>
+            <div>Datetime: {"{{from:datetime}}"} (renders as datetime picker in dashboard view)</div>
+            <div style={{ marginTop: "6px" }}>
+              Example URL: https://api.example.com/events?region={"{{region}}"}&amp;from={"{{from:datetime}}"}
+            </div>
+          </div>
           <label className="dialog-field">
             <span>URL</span>
             <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.example.com/data" />
