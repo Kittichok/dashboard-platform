@@ -122,10 +122,37 @@ class DashboardServiceTest {
         assertEquals("Service Operations Copy", duplicate.name());
         assertEquals(source.description(), duplicate.description());
         assertEquals(source.widgetsJson(), duplicate.widgetsJson());
+        assertEquals(source.variableStateJson(), duplicate.variableStateJson());
         assertEquals(1L, duplicate.version());
         assertEquals(NOW, duplicate.createdAt());
         assertEquals(NOW, duplicate.updatedAt());
         assertEquals(duplicate, repository.findById(duplicateId).orElseThrow());
+    }
+
+    @Test
+    void updateVariableStatePersistsValuesAndIncrementsVersion() {
+        var repository = new InMemoryDashboardRepository();
+        var stored = dashboard(
+            UUID.fromString("11111111-1111-1111-1111-111111111111"),
+            "Service Operations",
+            "Incidents and platform health",
+            "[]",
+            2L,
+            Instant.parse("2026-06-15T10:00:00Z"),
+            Instant.parse("2026-06-15T11:00:00Z"));
+        repository.insert(stored);
+        var service = new DashboardService(repository, CLOCK, uuidSequence(
+            UUID.fromString("22222222-2222-2222-2222-222222222222")));
+
+        var updated = service.updateVariableState(
+            stored.id(),
+            stored.version(),
+            Map.of("region", "us-east-1", "from", "2026-06-19T09:30"));
+
+        assertEquals(3L, updated.version());
+        assertTrue(updated.variableStateJson().contains("\"region\":\"us-east-1\""));
+        assertTrue(updated.variableStateJson().contains("\"from\":\"2026-06-19T09:30\""));
+        assertEquals(updated, repository.findById(stored.id()).orElseThrow());
     }
 
     @Test
@@ -219,7 +246,7 @@ class DashboardServiceTest {
         Instant createdAt,
         Instant updatedAt
     ) {
-        return new Dashboard(id, name, description, widgetsJson, version, createdAt, updatedAt);
+        return new Dashboard(id, name, description, widgetsJson, "{}", version, createdAt, updatedAt);
     }
 
     private void assertSingleFieldError(DashboardValidationException exception, String fieldName) {

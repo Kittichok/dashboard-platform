@@ -42,11 +42,11 @@ class DatabaseMigrationRunnerTest {
 
         var jdbcTemplate = new JdbcTemplate(dataSource);
         assertIterableEquals(
-            List.of(1L),
+            List.of(1L, 2L),
             jdbcTemplate.query(
                 "select version from schema_history order by version",
                 (resultSet, rowNum) -> resultSet.getLong("version")));
-        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from schema_history", Integer.class));
+        assertEquals(2, jdbcTemplate.queryForObject("select count(*) from schema_history", Integer.class));
     }
 
     @Test
@@ -62,6 +62,7 @@ class DatabaseMigrationRunnerTest {
             "Service Operations",
             "Incidents and platform health",
             "[{\"id\":\"widget-1\"}]",
+            "{}",
             1L,
             Instant.parse("2026-06-15T09:00:00Z"),
             Instant.parse("2026-06-15T09:00:00Z"));

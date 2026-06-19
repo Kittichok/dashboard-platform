@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { AppSidebar } from "../dashboard/AppSidebar";
-import { getDashboard } from "../dashboard/dashboardApi";
+import { getDashboard, updateDashboardVariableState } from "../dashboard/dashboardApi";
 import type { ApiFailure, Dashboard, NetworkFailure } from "../dashboard/types";
 import { Icon } from "../dashboard/icons";
 import { listWidgets } from "./widgetApi";
@@ -63,9 +63,41 @@ export function DashboardViewer() {
 
   const variables = useMemo(() => extractDataSourceVariables(widgets), [widgets]);
 
-  const runRequests = useCallback(async () => {
-    if (!id) {
+  useEffect(() => {
+    if (!dashboard) {
+      setVariableValues({});
       return;
+    }
+    const allowedNames = new Set(variables.map((variable) => variable.name));
+    const persistedValues = dashboard.variableState ?? {};
+    const filteredValues = Object.fromEntries(
+      Object.entries(persistedValues).filter(([name]) => allowedNames.has(name))
+    );
+    setVariableValues(filteredValues);
+  }, [dashboard, variables]);
+
+  const runRequests = useCallback(async (persistState: boolean) => {
+    if (!id || !dashboard) {
+      return;
+    }
+
+    const allowedNames = new Set(variables.map((variable) => variable.name));
+    const activeVariables = Object.fromEntries(
+      Object.entries(variableValues).filter(([name]) => allowedNames.has(name))
+    );
+
+    if (persistState) {
+      try {
+        const updatedDashboard = await updateDashboardVariableState(id, {
+          version: dashboard.version,
+          variableState: activeVariables
+        });
+        setDashboard(updatedDashboard);
+      } catch (err: unknown) {
+        const failure = err as ApiFailure | NetworkFailure;
+        setError(errToViewerError(failure, "Failed to save dashboard variable state."));
+        return;
+      }
     }
 
     const requestableWidgetIds = widgets
@@ -84,7 +116,7 @@ export function DashboardViewer() {
       await runWidgetRequests({
         dashboardId: id,
         widgets,
-        variables: variableValues,
+        variables: activeVariables,
         onWidgetResult: (widgetId, result) => {
           setWidgetData((current) => ({
             ...current,
@@ -100,7 +132,7 @@ export function DashboardViewer() {
       setDataLoading(false);
       setWidgetLoading({});
     }
-  }, [id, variableValues, widgets]);
+  }, [dashboard, id, variableValues, variables, widgets]);
 
   if (loading) {
     return (
@@ -146,7 +178,7 @@ export function DashboardViewer() {
             <button
               type="button"
               className="button primary"
-              onClick={runRequests}
+              onClick={() => runRequests(true)}
               disabled={dataLoading || widgets.length === 0}
             >
               <Icon name="search" /> Search
@@ -154,7 +186,7 @@ export function DashboardViewer() {
             <button
               type="button"
               className="button secondary"
-              onClick={runRequests}
+              onClick={() => runRequests(false)}
               disabled={dataLoading || !hasSearched || widgets.length === 0}
             >
               <Icon name="refresh" /> Refresh

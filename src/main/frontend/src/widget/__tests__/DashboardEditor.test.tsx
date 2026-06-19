@@ -182,30 +182,18 @@ describe("DashboardEditor", () => {
     expect(screen.getByText(/Example URL:/)).toBeInTheDocument();
   });
 
-  it("updates widget position through the edit panel", async () => {
+  it("does not change widget position through the edit panel", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
     fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      ...latencyWidget,
-      x: 3,
-      y: 2
-    }));
+    fetchMock.mockResolvedValueOnce(jsonResponse(latencyWidget));
 
     renderEditor();
 
     const card = (await screen.findByRole("heading", { name: "Latency" })).closest("article");
     expect(card).not.toBeNull();
     await user.click(card!);
-
-    const xInput = screen.getByRole("spinbutton", { name: /x/i });
-    await user.clear(xInput);
-    await user.type(xInput, "3");
-
-    const yInput = screen.getByRole("spinbutton", { name: /y/i });
-    await user.clear(yInput);
-    await user.type(yInput, "2");
 
     await user.click(screen.getByRole("button", { name: /save/i }));
 
@@ -217,8 +205,8 @@ describe("DashboardEditor", () => {
         body: JSON.stringify({
           title: "Latency",
           type: "metric",
-          x: 3,
-          y: 2,
+          x: 0,
+          y: 0,
           w: 3,
           h: 2,
           displayConfigJson: JSON.stringify({ value: "98.4" }),

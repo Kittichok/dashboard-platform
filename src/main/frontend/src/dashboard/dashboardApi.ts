@@ -25,6 +25,13 @@ export async function renameDashboard(
   return request<Dashboard>(`/api/dashboards/${id}`, jsonRequest("PATCH", input));
 }
 
+export async function updateDashboardVariableState(
+  id: string,
+  input: { version: number; variableState: Record<string, string> }
+): Promise<Dashboard> {
+  return request<Dashboard>(`/api/dashboards/${id}/variable-state`, jsonRequest("PATCH", input));
+}
+
 export async function duplicateDashboard(id: string): Promise<Dashboard> {
   return request<Dashboard>(`/api/dashboards/${id}/duplicate`, { method: "POST" });
 }

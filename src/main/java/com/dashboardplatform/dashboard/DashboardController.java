@@ -68,6 +68,17 @@ public class DashboardController {
             request.description()));
     }
 
+    @PatchMapping("/{id}/variable-state")
+    public DashboardResponse updateVariableState(
+        @PathVariable UUID id,
+        @Valid @RequestBody UpdateDashboardVariableStateRequest request
+    ) {
+        return response(dashboardService.updateVariableState(
+            id,
+            request.version(),
+            request.variableState()));
+    }
+
     @PostMapping("/{id}/duplicate")
     public ResponseEntity<DashboardResponse> duplicateDashboard(@PathVariable UUID id) {
         var dashboard = dashboardService.duplicateDashboard(id);

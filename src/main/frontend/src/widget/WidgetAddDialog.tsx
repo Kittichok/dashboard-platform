@@ -44,14 +44,12 @@ export function WidgetAddDialog({
   const defaultPos = findDefaultPosition(existingWidgets, 3, 2);
   const [title, setTitle] = useState("");
   const [type, setType] = useState<WidgetType>("table");
-  const [x, setX] = useState(defaultPos.x);
-  const [y, setY] = useState(defaultPos.y);
   const [w, setW] = useState(3);
   const [h, setH] = useState(2);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    await onSubmit({ title, type, x, y, w, h });
+    await onSubmit({ title, type, x: defaultPos.x, y: defaultPos.y, w, h });
   }
 
   return (
@@ -78,14 +76,6 @@ export function WidgetAddDialog({
           </select>
         </label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-          <label className="dialog-field">
-            <span>X</span>
-            <input type="number" min={0} value={x} onChange={(e) => setX(Number(e.target.value))} />
-          </label>
-          <label className="dialog-field">
-            <span>Y</span>
-            <input type="number" min={0} value={y} onChange={(e) => setY(Number(e.target.value))} />
-          </label>
           <label className="dialog-field">
             <span>Width</span>
             <input type="number" min={1} value={w} onChange={(e) => setW(Number(e.target.value))} />

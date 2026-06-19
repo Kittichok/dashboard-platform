@@ -96,6 +96,7 @@ describe("DashboardViewer search and refresh", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...dashboard, variableState: {}, version: 5 }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ value: "123.0" }));
 
     renderViewer();
@@ -104,7 +105,7 @@ describe("DashboardViewer search and refresh", () => {
     await user.click(screen.getByRole("button", { name: "Search" }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+      4,
       "/api/dashboards/dashboard-1/widgets/widget-1/fetch",
       expect.objectContaining({
         method: "POST",
@@ -125,6 +126,7 @@ describe("DashboardViewer search and refresh", () => {
     };
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([variableWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...dashboard, variableState: { userId: "42" }, version: 5 }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ value: "123.0" }));
 
     renderViewer();
@@ -135,6 +137,18 @@ describe("DashboardViewer search and refresh", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
+      "/api/dashboards/dashboard-1/variable-state",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          version: 4,
+          variableState: { userId: "42" }
+        })
+      })
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
       "/api/dashboards/dashboard-1/widgets/widget-1/fetch",
       expect.objectContaining({
         method: "POST",
@@ -184,6 +198,7 @@ describe("DashboardViewer search and refresh", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...dashboard, variableState: {}, version: 5 }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ value: "123.0" }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ value: "124.5" }));
 
@@ -199,13 +214,14 @@ describe("DashboardViewer search and refresh", () => {
 
     await user.click(refresh);
     expect(await screen.findByText("124.5")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
   it("clears a widget's previous result when its refresh fails", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...dashboard, variableState: {}, version: 5 }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ value: "123.0" }));
     fetchMock.mockResolvedValueOnce(new Response("Bad gateway", { status: 502 }));
 
@@ -229,6 +245,7 @@ describe("DashboardViewer search and refresh", () => {
     let resolveSummary: (response: Response) => void = () => undefined;
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget, summaryWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...dashboard, variableState: {}, version: 5 }));
     fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => {
       resolveLatency = resolve;
     }));
@@ -249,5 +266,24 @@ describe("DashboardViewer search and refresh", () => {
     const latencyCard = screen.getByRole("heading", { name: "Latency" }).closest("article");
     expect(latencyCard).not.toBeNull();
     expect(await within(latencyCard!).findByText("123.0")).toBeInTheDocument();
+  });
+
+  it("hydrates variable input values from persisted dashboard variableState", async () => {
+    const variableWidget = {
+      ...latencyWidget,
+      dataSource: {
+        ...latencyWidget.dataSource,
+        url: "https://api.example.test/latency/{{userId}}"
+      }
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      ...dashboard,
+      variableState: { userId: "42" }
+    }));
+    fetchMock.mockResolvedValueOnce(jsonResponse([variableWidget]));
+
+    renderViewer();
+
+    expect(await screen.findByLabelText("userId variable")).toHaveValue("42");
   });
 });

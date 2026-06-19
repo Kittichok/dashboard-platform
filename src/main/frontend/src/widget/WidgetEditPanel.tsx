@@ -22,8 +22,6 @@ export function WidgetEditPanel({
 }: WidgetEditPanelProps) {
   const [title, setTitle] = useState(widget.title);
   const [type, setType] = useState<WidgetType>(widget.type);
-  const [x, setX] = useState(widget.x);
-  const [y, setY] = useState(widget.y);
   const [w, setW] = useState(widget.w);
   const [h, setH] = useState(widget.h);
   const [displayConfig, setDisplayConfig] = useState<Record<string, unknown> | null>(
@@ -38,8 +36,8 @@ export function WidgetEditPanel({
     await onSubmit({
       title,
       type,
-      x,
-      y,
+      x: widget.x,
+      y: widget.y,
       w,
       h,
       displayConfig,
@@ -79,14 +77,6 @@ export function WidgetEditPanel({
             </select>
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <label className="dialog-field">
-              <span>X</span>
-              <input type="number" min={0} value={x} onChange={(e) => setX(Number(e.target.value))} />
-            </label>
-            <label className="dialog-field">
-              <span>Y</span>
-              <input type="number" min={0} value={y} onChange={(e) => setY(Number(e.target.value))} />
-            </label>
             <label className="dialog-field">
               <span>Width</span>
               <input type="number" min={1} value={w} onChange={(e) => setW(Number(e.target.value))} />

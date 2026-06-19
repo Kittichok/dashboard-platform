@@ -569,19 +569,21 @@ h1 {
   position: fixed;
   inset: 0;
   z-index: 60;
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  place-items: center;
+  padding: 20px;
   background: rgba(13, 22, 41, .38);
 }
 
 .edit-panel {
   width: min(430px, 100%);
-  min-height: 100vh;
+  max-height: calc(100vh - 40px);
   padding: 24px;
   overflow-y: auto;
-  border-left: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 13px;
   background: white;
-  box-shadow: -18px 0 50px rgba(7, 15, 31, .22);
+  box-shadow: 0 24px 80px rgba(7, 15, 31, .3);
 }
 
 @media (max-width: 1120px) {
@@ -702,11 +704,11 @@ h1 {
 }
 
 .variable-field {
-  min-height: 40px;
-  width: 150px;
+  min-height: 56px;
+  width: 220px;
   display: grid;
-  grid-template-columns: minmax(44px, auto) minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 8px;
   padding: 5px 9px;
   border: 1px solid var(--line-strong);
@@ -720,6 +722,8 @@ h1 {
 .variable-field input {
   min-width: 0;
   width: 100%;
+  min-height: 28px;
+  padding: 4px 6px;
   border: 0;
   outline: 0;
   background: transparent;
