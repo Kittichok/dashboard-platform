@@ -1,8 +1,10 @@
 package com.dashboardplatform.web;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.server.ResponseStatusException;
 
 @Controller
 public class SpaForwardController {
@@ -12,7 +14,11 @@ public class SpaForwardController {
     }
 
     @GetMapping({"/{path:^(?!api$|assets$)[^.]*}", "/{path:^(?!api$|assets$)[^.]*}/**"})
-    public String forwardClientRoute(@PathVariable String path) {
+    public String forwardClientRoute(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path.contains(".")) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
         return "forward:/index.html";
     }
 }
