@@ -1,5 +1,5 @@
 import { fetchWidgetData as defaultFetchWidgetData } from "./widgetApi";
-import type { DataSource, Widget, WidgetFetchResult } from "./types";
+import type { DataSource, DataSourceVariable, VariableType, Widget, WidgetFetchResult } from "./types";
 
 type FetchWidgetData = (
   dashboardId: string,
@@ -53,23 +53,23 @@ export async function runWidgetRequests({
   return results;
 }
 
-export function extractDataSourceVariableNames(widgets: Widget[]): string[] {
-  const names = new Set<string>();
+export function extractDataSourceVariables(widgets: Widget[]): DataSourceVariable[] {
+  const names = new Map<string, DataSourceVariable>();
   for (const widget of widgets) {
     const source = widget.dataSource;
     if (!source || source.type !== "rest") {
       continue;
     }
-    collectVariableNames(source.url, names);
+    collectVariables(source.url, names);
     Object.entries(source.headers).forEach(([key, value]) => {
-      collectVariableNames(key, names);
-      collectVariableNames(value, names);
+      collectVariables(key, names);
+      collectVariables(value, names);
     });
     if (source.body) {
-      collectVariableNames(source.body, names);
+      collectVariables(source.body, names);
     }
   }
-  return Array.from(names).sort();
+  return Array.from(names.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function resolveDataSourceVariables(dataSource: Widget["dataSource"], variables: Record<string, string>): Widget["dataSource"] {
@@ -90,9 +90,15 @@ function resolveDataSourceVariables(dataSource: Widget["dataSource"], variables:
   };
 }
 
-function collectVariableNames(value: string, names: Set<string>) {
+function collectVariables(value: string, names: Map<string, DataSourceVariable>) {
   for (const match of value.matchAll(variablePattern())) {
-    names.add(match[1]);
+    const name = match[1];
+    if (!names.has(name)) {
+      names.set(name, {
+        name,
+        type: toVariableType(match[2]),
+      });
+    }
   }
 }
 
@@ -101,7 +107,14 @@ function replaceVariables(value: string, variables: Record<string, string>): str
 }
 
 function variablePattern(): RegExp {
-  return /{{\s*([A-Za-z0-9_.-]+)\s*}}/g;
+  return /{{\s*([A-Za-z0-9_.-]+)(?::(string|datetime))?\s*}}/g;
+}
+
+function toVariableType(value: string | undefined): VariableType {
+  if (value === "datetime") {
+    return "datetime";
+  }
+  return "string";
 }
 
 function stableStringify(value: unknown): string {

@@ -6,7 +6,7 @@ import { getDashboard } from "../dashboard/dashboardApi";
 import type { ApiFailure, Dashboard, NetworkFailure } from "../dashboard/types";
 import { Icon } from "../dashboard/icons";
 import { listWidgets } from "./widgetApi";
-import { extractDataSourceVariableNames, runWidgetRequests } from "./widgetRequestRunner";
+import { extractDataSourceVariables, runWidgetRequests } from "./widgetRequestRunner";
 import { WidgetRenderer } from "./WidgetRenderer";
 import type { Widget, WidgetFetchResult } from "./types";
 
@@ -61,7 +61,7 @@ export function DashboardViewer() {
     load();
   }, [load]);
 
-  const variableNames = useMemo(() => extractDataSourceVariableNames(widgets), [widgets]);
+  const variables = useMemo(() => extractDataSourceVariables(widgets), [widgets]);
 
   const runRequests = useCallback(async () => {
     if (!id) {
@@ -125,17 +125,18 @@ export function DashboardViewer() {
             <h1>{dashboard?.name ?? "Dashboard"}</h1>
           </div>
           <div className="header-actions">
-            {variableNames.length > 0 ? (
+            {variables.length > 0 ? (
               <div className="variable-inputs" aria-label="Dashboard variables">
-                {variableNames.map((name) => (
-                  <label key={name} className="variable-field">
-                    <span>{name}</span>
+                {variables.map((variable) => (
+                  <label key={variable.name} className="variable-field">
+                    <span>{variable.name}</span>
                     <input
-                      aria-label={`${name} variable`}
-                      value={variableValues[name] ?? ""}
+                      type={variable.type === "datetime" ? "datetime-local" : "text"}
+                      aria-label={`${variable.name} variable`}
+                      value={variableValues[variable.name] ?? ""}
                       onChange={(event) => {
                         const value = event.target.value;
-                        setVariableValues((current) => ({ ...current, [name]: value }));
+                        setVariableValues((current) => ({ ...current, [variable.name]: value }));
                       }}
                     />
                   </label>

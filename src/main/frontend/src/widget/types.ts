@@ -1,5 +1,12 @@
 export type WidgetType = 'table' | 'chart' | 'metric' | 'text' | 'raw_json' | 'json_preview';
 
+export type VariableType = 'string' | 'datetime';
+
+export interface DataSourceVariable {
+  name: string;
+  type: VariableType;
+}
+
 export type WidgetFetchResult =
   | { ok: true; data: unknown }
   | { ok: false; status: number };

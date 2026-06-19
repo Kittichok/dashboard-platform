@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { runWidgetRequests } from "../widgetRequestRunner";
+import { extractDataSourceVariables, runWidgetRequests } from "../widgetRequestRunner";
 import type { Widget, WidgetFetchResult } from "../types";
 
 function widget(overrides: Partial<Widget>): Widget {
@@ -162,6 +162,52 @@ describe("runWidgetRequests", () => {
       method: "POST",
       headers: { "X-Team": "ops" },
       body: "{\"owner\":\"42\"}"
+    });
+  });
+
+  it("extracts typed variables and defaults untyped tokens to string", () => {
+    const variables = extractDataSourceVariables([
+      widget({
+        dataSource: {
+          type: "rest",
+          url: "https://api.example.test/events?region={{region}}&from={{from:datetime}}",
+          method: "GET",
+          headers: { "X-User": "{{user:string}}" },
+          body: null,
+        },
+      }),
+    ]);
+
+    expect(variables).toEqual([
+      { name: "from", type: "datetime" },
+      { name: "region", type: "string" },
+      { name: "user", type: "string" },
+    ]);
+  });
+
+  it("resolves mixed typed and untyped tokens without type suffixes in output", async () => {
+    const source = {
+      type: "rest" as const,
+      url: "https://api.example.test/events?region={{region}}&from={{from:datetime}}",
+      method: "POST" as const,
+      headers: { "X-From": "{{from:datetime}}" },
+      body: "{\"from\":\"{{from:datetime}}\",\"region\":\"{{region}}\"}",
+    };
+    const fetchWidgetData = vi.fn().mockResolvedValueOnce(ok({ total: 8 }));
+
+    await runWidgetRequests({
+      dashboardId: "dashboard-1",
+      widgets: [widget({ id: "widget-1", dataSource: source })],
+      variables: { region: "ap-southeast-1", from: "2026-06-19T09:30" },
+      fetchWidgetData,
+    });
+
+    expect(fetchWidgetData).toHaveBeenCalledWith("dashboard-1", "widget-1", {
+      type: "rest",
+      url: "https://api.example.test/events?region=ap-southeast-1&from=2026-06-19T09:30",
+      method: "POST",
+      headers: { "X-From": "2026-06-19T09:30" },
+      body: "{\"from\":\"2026-06-19T09:30\",\"region\":\"ap-southeast-1\"}",
     });
   });
 });

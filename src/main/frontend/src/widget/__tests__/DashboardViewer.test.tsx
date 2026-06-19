@@ -146,6 +146,40 @@ describe("DashboardViewer search and refresh", () => {
     );
   });
 
+  it("renders datetime variable as datetime-local input", async () => {
+    const typedVariableWidget = {
+      ...latencyWidget,
+      dataSource: {
+        ...latencyWidget.dataSource,
+        url: "https://api.example.test/latency?from={{from:datetime}}"
+      }
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([typedVariableWidget]));
+
+    renderViewer();
+
+    const input = await screen.findByLabelText("from variable");
+    expect(input).toHaveAttribute("type", "datetime-local");
+  });
+
+  it("renders string variable as text input", async () => {
+    const typedVariableWidget = {
+      ...latencyWidget,
+      dataSource: {
+        ...latencyWidget.dataSource,
+        url: "https://api.example.test/latency?region={{region:string}}"
+      }
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([typedVariableWidget]));
+
+    renderViewer();
+
+    const input = await screen.findByLabelText("region variable");
+    expect(input).toHaveAttribute("type", "text");
+  });
+
   it("enables Refresh after Search and reruns the last searched request set", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
