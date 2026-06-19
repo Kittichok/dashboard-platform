@@ -6,19 +6,23 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Objects;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DatabaseMigrationRunner {
-    private static final int DASHBOARDS_SCHEMA_VERSION = 1;
-    private static final String DASHBOARDS_MIGRATION =
-        "db/migration/V1__create_dashboards.sql";
+    private static final List<String> MIGRATIONS = List.of(
+        "db/migration/V1__create_dashboards.sql",
+        "db/migration/V2__add_dashboard_variable_state_json.sql"
+    );
 
     private final DataSource dataSource;
 
+    @Autowired
     public DatabaseMigrationRunner(DataSource dataSource) {
         this.dataSource = dataSource;
     }
@@ -29,9 +33,13 @@ public class DatabaseMigrationRunner {
             connection.setAutoCommit(false);
             try {
                 createHistoryTable(connection);
-                if (!hasVersion(connection, DASHBOARDS_SCHEMA_VERSION)) {
-                    executeMigration(connection, readMigration(DASHBOARDS_MIGRATION));
-                    recordVersion(connection, DASHBOARDS_SCHEMA_VERSION, DASHBOARDS_MIGRATION);
+                for (int index = 0; index < MIGRATIONS.size(); index++) {
+                    var version = index + 1;
+                    var migrationPath = MIGRATIONS.get(index);
+                    if (!hasVersion(connection, version)) {
+                        executeMigration(connection, readMigration(migrationPath));
+                        recordVersion(connection, version, migrationPath);
+                    }
                 }
                 connection.commit();
             } catch (RuntimeException | SQLException exception) {

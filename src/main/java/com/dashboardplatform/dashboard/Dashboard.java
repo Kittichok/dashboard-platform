@@ -8,6 +8,7 @@ public record Dashboard(
     String name,
     String description,
     String widgetsJson,
+    String variableStateJson,
     long version,
     Instant createdAt,
     Instant updatedAt

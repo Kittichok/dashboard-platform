@@ -3,6 +3,7 @@ export type Dashboard = {
   name: string;
   description: string;
   widgets: Array<Record<string, unknown>>;
+  variableState?: Record<string, string>;
   version: number;
   createdAt?: string;
   updatedAt?: string;

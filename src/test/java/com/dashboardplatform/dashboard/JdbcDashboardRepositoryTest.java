@@ -195,6 +195,6 @@ class JdbcDashboardRepositoryTest {
         Instant createdAt,
         Instant updatedAt
     ) {
-        return new Dashboard(id, name, description, widgetsJson, version, createdAt, updatedAt);
+        return new Dashboard(id, name, description, widgetsJson, "{}", version, createdAt, updatedAt);
     }
 }

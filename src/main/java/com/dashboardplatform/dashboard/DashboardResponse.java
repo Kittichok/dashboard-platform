@@ -12,11 +12,15 @@ public record DashboardResponse(
     String name,
     String description,
     List<Map<String, Object>> widgets,
+    Map<String, String> variableState,
     long version,
     String createdAt,
     String updatedAt
 ) {
     private static final TypeReference<List<Map<String, Object>>> WIDGET_LIST =
+        new TypeReference<>() {
+        };
+    private static final TypeReference<Map<String, String>> VARIABLE_STATE_MAP =
         new TypeReference<>() {
         };
 
@@ -26,6 +30,7 @@ public record DashboardResponse(
             dashboard.name(),
             dashboard.description(),
             parseWidgets(dashboard.widgetsJson(), objectMapper),
+                parseVariableState(dashboard.variableStateJson(), objectMapper),
             dashboard.version(),
             dashboard.createdAt().toString(),
             dashboard.updatedAt().toString());
@@ -39,6 +44,20 @@ public record DashboardResponse(
             return objectMapper.readValue(widgetsJson, WIDGET_LIST);
         } catch (java.io.IOException exception) {
             throw new UncheckedIOException("Failed to parse stored dashboard widgets", exception);
+        }
+    }
+
+    private static Map<String, String> parseVariableState(
+        String variableStateJson,
+        ObjectMapper objectMapper
+    ) {
+        try {
+            if (variableStateJson == null || variableStateJson.isBlank()) {
+                return Map.of();
+            }
+            return objectMapper.readValue(variableStateJson, VARIABLE_STATE_MAP);
+        } catch (java.io.IOException exception) {
+            throw new UncheckedIOException("Failed to parse stored dashboard variable state", exception);
         }
     }
 }

@@ -134,6 +134,44 @@ class DashboardControllerTest {
             .andExpect(jsonPath("$.version").value(2));
     }
 
+        @Test
+        void patchVariableStateReturnsUpdatedDashboardWithPersistedValues() throws Exception {
+                var id = UUID.fromString("11111111-1111-1111-1111-111111111111");
+                var updated = dashboard(
+                        id,
+                        "Operations",
+                        "Platform health",
+                        "[]",
+                        5L,
+                        Instant.parse("2026-06-15T09:30:00Z"),
+                        Instant.parse("2026-06-15T12:30:00Z"));
+                given(dashboardService.updateVariableState(id, 4L, java.util.Map.of("userId", "42")))
+                        .willReturn(new Dashboard(
+                                updated.id(),
+                                updated.name(),
+                                updated.description(),
+                                updated.widgetsJson(),
+                                "{\"userId\":\"42\"}",
+                                updated.version(),
+                                updated.createdAt(),
+                                updated.updatedAt()));
+
+                mockMvc.perform(patch("/api/dashboards/{id}/variable-state", id)
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "version": 4,
+                                            "variableState": {
+                                                "userId": "42"
+                                            }
+                                        }
+                                        """))
+                        .andExpect(status().isOk())
+                        .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON))
+                        .andExpect(jsonPath("$.variableState.userId").value("42"))
+                        .andExpect(jsonPath("$.version").value(5));
+        }
+
     @Test
     void duplicateDashboardReturnsCreatedDashboardAndLocationHeader() throws Exception {
         var sourceId = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -273,6 +311,6 @@ class DashboardControllerTest {
         Instant createdAt,
         Instant updatedAt
     ) {
-        return new Dashboard(id, name, description, widgetsJson, version, createdAt, updatedAt);
+        return new Dashboard(id, name, description, widgetsJson, "{}", version, createdAt, updatedAt);
     }
 }

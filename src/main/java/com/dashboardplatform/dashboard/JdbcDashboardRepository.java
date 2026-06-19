@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -17,6 +18,7 @@ public class JdbcDashboardRepository implements DashboardRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
+    @Autowired
     public JdbcDashboardRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -24,7 +26,7 @@ public class JdbcDashboardRepository implements DashboardRepository {
     @Override
     public List<Dashboard> findAll() {
         return jdbcTemplate.query("""
-            SELECT id, name, description, widgets_json, version, created_at, updated_at
+            SELECT id, name, description, widgets_json, variable_state_json, version, created_at, updated_at
             FROM dashboards
             ORDER BY updated_at DESC
             """, DASHBOARD_ROW_MAPPER);
@@ -33,7 +35,7 @@ public class JdbcDashboardRepository implements DashboardRepository {
     @Override
     public Optional<Dashboard> findById(UUID id) {
         var dashboards = jdbcTemplate.query("""
-            SELECT id, name, description, widgets_json, version, created_at, updated_at
+            SELECT id, name, description, widgets_json, variable_state_json, version, created_at, updated_at
             FROM dashboards
             WHERE id = ?
             """, DASHBOARD_ROW_MAPPER, id.toString());
@@ -53,13 +55,14 @@ public class JdbcDashboardRepository implements DashboardRepository {
     public void insert(Dashboard dashboard) {
         jdbcTemplate.update("""
             INSERT INTO dashboards (
-                id, name, description, widgets_json, version, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                id, name, description, widgets_json, variable_state_json, version, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             dashboard.id().toString(),
             dashboard.name(),
             dashboard.description(),
             dashboard.widgetsJson(),
+            dashboard.variableStateJson(),
             dashboard.version(),
             dashboard.createdAt().toString(),
             dashboard.updatedAt().toString());
@@ -69,12 +72,13 @@ public class JdbcDashboardRepository implements DashboardRepository {
     public boolean update(Dashboard dashboard, long expectedVersion) {
         return jdbcTemplate.update("""
             UPDATE dashboards
-            SET name = ?, description = ?, widgets_json = ?, version = ?, updated_at = ?
+            SET name = ?, description = ?, widgets_json = ?, variable_state_json = ?, version = ?, updated_at = ?
             WHERE id = ? AND version = ?
             """,
             dashboard.name(),
             dashboard.description(),
             dashboard.widgetsJson(),
+            dashboard.variableStateJson(),
             dashboard.version(),
             dashboard.updatedAt().toString(),
             dashboard.id().toString(),
@@ -95,6 +99,7 @@ public class JdbcDashboardRepository implements DashboardRepository {
             resultSet.getString("name"),
             resultSet.getString("description"),
             resultSet.getString("widgets_json"),
+            resultSet.getString("variable_state_json"),
             resultSet.getLong("version"),
             Instant.parse(resultSet.getString("created_at")),
             Instant.parse(resultSet.getString("updated_at")));

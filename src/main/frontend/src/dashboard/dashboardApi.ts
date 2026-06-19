@@ -6,6 +6,10 @@ type ApiErrorBody = {
   fieldErrors?: Record<string, string>;
 };
 
+export async function getDashboard(id: string): Promise<Dashboard> {
+  return request<Dashboard>(`/api/dashboards/${id}`, { method: "GET" });
+}
+
 export async function listDashboards(): Promise<Dashboard[]> {
   return request<Dashboard[]>("/api/dashboards", { method: "GET" });
 }
@@ -19,6 +23,13 @@ export async function renameDashboard(
   input: DashboardInput & { version: number }
 ): Promise<Dashboard> {
   return request<Dashboard>(`/api/dashboards/${id}`, jsonRequest("PATCH", input));
+}
+
+export async function updateDashboardVariableState(
+  id: string,
+  input: { version: number; variableState: Record<string, string> }
+): Promise<Dashboard> {
+  return request<Dashboard>(`/api/dashboards/${id}/variable-state`, jsonRequest("PATCH", input));
 }
 
 export async function duplicateDashboard(id: string): Promise<Dashboard> {
