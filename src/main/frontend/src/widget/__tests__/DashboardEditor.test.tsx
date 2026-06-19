@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
+import { NavCollapseProvider } from "../../dashboard/NavCollapseContext";
 import { DashboardEditor } from "../DashboardEditor";
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
@@ -17,11 +18,13 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 
 function renderEditor() {
   render(
-    <MemoryRouter initialEntries={["/dashboards/dashboard-1"]}>
-      <Routes>
-        <Route path="/dashboards/:id" element={<DashboardEditor />} />
-      </Routes>
-    </MemoryRouter>
+    <NavCollapseProvider>
+      <MemoryRouter initialEntries={["/dashboards/dashboard-1"]}>
+        <Routes>
+          <Route path="/dashboards/:id" element={<DashboardEditor />} />
+        </Routes>
+      </MemoryRouter>
+    </NavCollapseProvider>
   );
 }
 

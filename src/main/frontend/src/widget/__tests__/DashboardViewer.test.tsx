@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { NavCollapseProvider } from "../../dashboard/NavCollapseContext";
 import { DashboardViewer } from "../DashboardViewer";
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
@@ -17,11 +18,13 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 
 function renderViewer() {
   render(
-    <MemoryRouter initialEntries={["/dashboards/dashboard-1/view"]}>
-      <Routes>
-        <Route path="/dashboards/:id/view" element={<DashboardViewer />} />
-      </Routes>
-    </MemoryRouter>
+    <NavCollapseProvider>
+      <MemoryRouter initialEntries={["/dashboards/dashboard-1/view"]}>
+        <Routes>
+          <Route path="/dashboards/:id/view" element={<DashboardViewer />} />
+        </Routes>
+      </MemoryRouter>
+    </NavCollapseProvider>
   );
 }
 
@@ -284,6 +287,9 @@ describe("DashboardViewer search and refresh", () => {
 
     renderViewer();
 
-    expect(await screen.findByLabelText("userId variable")).toHaveValue("42");
+    const input = await screen.findByLabelText("userId variable");
+    await waitFor(() => {
+      expect(input).toHaveValue("42");
+    });
   });
 });

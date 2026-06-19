@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { AppSidebar } from "../dashboard/AppSidebar";
+import { useNavCollapse } from "../dashboard/NavCollapseContext";
 import { getDashboard, updateDashboardVariableState } from "../dashboard/dashboardApi";
 import type { ApiFailure, Dashboard, NetworkFailure } from "../dashboard/types";
 import { Icon } from "../dashboard/icons";
@@ -27,6 +28,7 @@ function errToViewerError(failure: ApiFailure | NetworkFailure, fallback: string
 
 export function DashboardViewer() {
   const { id } = useParams<{ id: string }>();
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useNavCollapse();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [widgetData, setWidgetData] = useState<Record<string, WidgetFetchResult>>({});
@@ -36,8 +38,6 @@ export function DashboardViewer() {
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ViewerError | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -136,7 +136,7 @@ export function DashboardViewer() {
 
   if (loading) {
     return (
-      <div className="app-shell">
+      <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
         <main className="main">
           <div className="empty-state" role="status">Loading dashboard...</div>
         </main>
@@ -148,7 +148,7 @@ export function DashboardViewer() {
     <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       <AppSidebar
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((current) => !current)}
+        onToggle={toggleSidebar}
       />
       <main className="main">
         <header className="page-header">

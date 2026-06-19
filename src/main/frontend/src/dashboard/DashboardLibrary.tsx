@@ -12,6 +12,7 @@ import { AppSidebar } from "./AppSidebar";
 import { CreateDashboardDialog } from "./CreateDashboardDialog";
 import { DashboardCard } from "./DashboardCard";
 import { DeleteDashboardDialog } from "./DeleteDashboardDialog";
+import { useNavCollapse } from "./NavCollapseContext";
 import { RenameDashboardDialog } from "./RenameDashboardDialog";
 import { Icon } from "./icons";
 import type { ApiFailure, Dashboard, DashboardFailure, DashboardInput } from "./types";
@@ -24,6 +25,7 @@ type DialogState =
 
 export function DashboardLibrary() {
   const navigate = useNavigate();
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useNavCollapse();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -31,8 +33,6 @@ export function DashboardLibrary() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [operationMessage, setOperationMessage] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   useEffect(() => {
     let mounted = true;
     listDashboards()
@@ -138,7 +138,7 @@ export function DashboardLibrary() {
       <AppSidebar
         activeItem="library"
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((current) => !current)}
+        onToggle={toggleSidebar}
       />
       <main className="main">
         <header className="page-header">

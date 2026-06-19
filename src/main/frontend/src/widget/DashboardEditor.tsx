@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { AppSidebar } from "../dashboard/AppSidebar";
+import { useNavCollapse } from "../dashboard/NavCollapseContext";
 import { getDashboard } from "../dashboard/dashboardApi";
 import type { ApiFailure, Dashboard, NetworkFailure } from "../dashboard/types";
 import { Icon } from "../dashboard/icons";
@@ -33,6 +34,7 @@ function errToEditorError(failure: ApiFailure | NetworkFailure, fallback: string
 export function DashboardEditor() {
   const { id } = useParams<{ id: string }>();
   const gridRef = useRef<HTMLElement>(null);
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useNavCollapse();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,6 @@ export function DashboardEditor() {
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
   const [editOperationMessage, setEditOperationMessage] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dragState, setDragState] = useState<{
     widgetId: string;
     origX: number;
@@ -214,7 +215,7 @@ export function DashboardEditor() {
 
   if (loading) {
     return (
-      <div className="app-shell">
+      <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
         <main className="main">
           <div className="empty-state" role="status">Loading editor...</div>
         </main>
@@ -226,7 +227,7 @@ export function DashboardEditor() {
     <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       <AppSidebar
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((current) => !current)}
+        onToggle={toggleSidebar}
       />
       <main className="main">
         <header className="page-header">

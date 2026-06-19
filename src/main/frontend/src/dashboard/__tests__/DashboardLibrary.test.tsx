@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
+import { NavCollapseProvider } from "../NavCollapseContext";
 import { DashboardLibrary } from "../DashboardLibrary";
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
@@ -55,7 +56,7 @@ describe("DashboardLibrary", () => {
 
     fetchMock.mockResolvedValueOnce(jsonResponse([serviceOperations, revenuePulse]));
 
-    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
+    render(<NavCollapseProvider><MemoryRouter><DashboardLibrary /></MemoryRouter></NavCollapseProvider>);
 
     expect(screen.getByRole("status")).toHaveTextContent(/loading/i);
 
@@ -81,7 +82,7 @@ describe("DashboardLibrary", () => {
   it("shows an empty-library state when the API returns no dashboards", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([]));
 
-    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
+    render(<NavCollapseProvider><MemoryRouter><DashboardLibrary /></MemoryRouter></NavCollapseProvider>);
 
     expect(await screen.findByText(/no dashboards yet/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /new dashboard/i })).toBeInTheDocument();
@@ -100,7 +101,7 @@ describe("DashboardLibrary", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([]));
     fetchMock.mockResolvedValueOnce(jsonResponse(createdDashboard, { status: 201 }));
 
-    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
+    render(<NavCollapseProvider><MemoryRouter><DashboardLibrary /></MemoryRouter></NavCollapseProvider>);
 
     await screen.findByText(/no dashboards yet/i);
     await user.click(screen.getByRole("button", { name: /new dashboard/i }));
@@ -155,7 +156,7 @@ describe("DashboardLibrary", () => {
       )
     );
 
-    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
+    render(<NavCollapseProvider><MemoryRouter><DashboardLibrary /></MemoryRouter></NavCollapseProvider>);
 
     await screen.findByRole("heading", { name: "Service Operations" });
     await user.click(getCard("Service Operations").getByRole("button", { name: /rename/i }));
@@ -198,7 +199,7 @@ describe("DashboardLibrary", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([revenuePulse]));
     fetchMock.mockResolvedValueOnce(jsonResponse(duplicate, { status: 201 }));
 
-    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
+    render(<NavCollapseProvider><MemoryRouter><DashboardLibrary /></MemoryRouter></NavCollapseProvider>);
 
     await screen.findByRole("heading", { name: "Revenue Pulse" });
     await user.click(getCard("Revenue Pulse").getByRole("button", { name: /duplicate/i }));
@@ -220,7 +221,7 @@ describe("DashboardLibrary", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse([serviceOperations]));
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
+    render(<NavCollapseProvider><MemoryRouter><DashboardLibrary /></MemoryRouter></NavCollapseProvider>);
 
     await screen.findByRole("heading", { name: "Service Operations" });
     await user.click(getCard("Service Operations").getByRole("button", { name: /delete/i }));
@@ -263,7 +264,7 @@ describe("DashboardLibrary", () => {
       )
     );
 
-    render(<MemoryRouter><DashboardLibrary /></MemoryRouter>);
+    render(<NavCollapseProvider><MemoryRouter><DashboardLibrary /></MemoryRouter></NavCollapseProvider>);
 
     await screen.findByRole("heading", { name: "Revenue Pulse" });
     await user.click(getCard("Revenue Pulse").getByRole("button", { name: /duplicate/i }));
