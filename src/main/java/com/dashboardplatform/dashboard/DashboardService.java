@@ -105,6 +105,80 @@ public class DashboardService {
         return updated;
     }
 
+    public Dashboard importDashboard(String name, String description, List<Map<String, Object>> widgets, Map<String, String> variableState) {
+        var values = validate(name, description);
+        var now = clock.instant();
+        var widgetsJson = toWidgetsJson(widgets == null ? List.of() : widgets);
+        var variableStateJson = toVariableStateJson(normalizeVariableState(variableState));
+        var dashboard = new Dashboard(
+            uuidSupplier.get(),
+            values.name(),
+            values.description(),
+            widgetsJson,
+            variableStateJson,
+            1L,
+            now,
+            now);
+        repository.insert(dashboard);
+        return dashboard;
+    }
+
+    public Map<String, Object> exportDashboard(UUID id) {
+        var dashboard = findDashboard(id);
+        try {
+            var widgets = OBJECT_MAPPER.readValue(dashboard.widgetsJson(), new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
+            var variableState = OBJECT_MAPPER.readValue(dashboard.variableStateJson(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+            return Map.of(
+                "name", dashboard.name(),
+                "description", dashboard.description(),
+                "widgets", widgets,
+                "variableState", variableState);
+        } catch (java.io.IOException exception) {
+            throw new IllegalStateException("Failed to parse stored dashboard data", exception);
+        }
+    }
+
+    public Map<String, Object> exportWidget(UUID dashboardId, UUID widgetId) {
+        var dashboard = findDashboard(dashboardId);
+        try {
+            var widgets = OBJECT_MAPPER.readValue(dashboard.widgetsJson(), new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
+            for (var w : widgets) {
+                var id = w.get("id");
+                if (id != null && widgetId.toString().equals(id.toString())) {
+                    var export = new LinkedHashMap<String, Object>();
+                    export.put("title", w.get("title"));
+                    export.put("type", w.get("type"));
+                    export.put("x", w.get("x"));
+                    export.put("y", w.get("y"));
+                    export.put("w", w.get("w"));
+                    export.put("h", w.get("h"));
+                    export.put("displayConfig", parseWidgetJsonField(w, "displayConfigJson"));
+                    export.put("dataSource", parseWidgetJsonField(w, "dataSourceJson"));
+                    return export;
+                }
+            }
+            throw new com.dashboardplatform.widget.WidgetExceptions.WidgetNotFoundException(dashboardId, widgetId);
+        } catch (java.io.IOException exception) {
+            throw new IllegalStateException("Failed to parse stored dashboard widgets", exception);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseWidgetJsonField(Map<String, Object> widget, String fieldName) {
+        var raw = widget.get(fieldName);
+        if (raw == null || (raw instanceof String s && s.isBlank())) {
+            return null;
+        }
+        if (raw instanceof Map) {
+            return (Map<String, Object>) raw;
+        }
+        try {
+            return OBJECT_MAPPER.readValue((String) raw, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (java.io.IOException exception) {
+            return null;
+        }
+    }
+
     public void deleteDashboard(UUID id, long expectedVersion) {
         if (!repository.delete(id, expectedVersion)) {
             throw writeFailure(id);
@@ -176,6 +250,14 @@ public class DashboardService {
             return OBJECT_MAPPER.writeValueAsString(variableState);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Failed to serialize dashboard variable state", exception);
+        }
+    }
+
+    private String toWidgetsJson(List<Map<String, Object>> widgets) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(widgets);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to serialize dashboard widgets", exception);
         }
     }
 

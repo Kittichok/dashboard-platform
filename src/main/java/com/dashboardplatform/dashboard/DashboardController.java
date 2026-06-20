@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -92,6 +93,29 @@ public class DashboardController {
     ) {
         dashboardService.deleteDashboard(id, version);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<DashboardResponse> importDashboard(
+        @Valid @RequestBody ImportDashboardRequest request
+    ) {
+        var dashboard = dashboardService.importDashboard(
+            request.name(), request.description(),
+            request.widgets(), request.variableState());
+        return ResponseEntity.created(location(dashboard.id())).body(response(dashboard));
+    }
+
+    @GetMapping("/{id}/export")
+    public Map<String, Object> exportDashboard(@PathVariable UUID id) {
+        return dashboardService.exportDashboard(id);
+    }
+
+    @GetMapping("/{id}/widgets/{widgetId}/export")
+    public Map<String, Object> exportWidget(
+        @PathVariable UUID id,
+        @PathVariable UUID widgetId
+    ) {
+        return dashboardService.exportWidget(id, widgetId);
     }
 
     private DashboardResponse response(Dashboard dashboard) {

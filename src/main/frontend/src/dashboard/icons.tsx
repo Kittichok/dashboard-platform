@@ -1,4 +1,4 @@
-type IconName = "dashboard" | "database" | "search" | "refresh" | "plus" | "copy" | "edit" | "trash" | "close" | "collapse" | "expand";
+type IconName = "dashboard" | "database" | "search" | "refresh" | "plus" | "copy" | "edit" | "trash" | "close" | "collapse" | "expand" | "download" | "upload";
 
 const paths: Record<IconName, string> = {
   dashboard:
@@ -13,7 +13,9 @@ const paths: Record<IconName, string> = {
   trash: "M4 7h16 M10 11v6 M14 11v6 M6 7l1 14h10l1-14 M9 7V4h6v3",
   close: "m6 6 12 12M18 6 6 18",
   collapse: "M15 6l-6 6 6 6",
-  expand: "M9 6l6 6-6 6"
+  expand: "M9 6l6 6-6 6",
+  download: "M12 3v12m-5-5l5 5 5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2",
+  upload: "M12 15V3m-5 5l5-5 5 5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
 };
 
 export function Icon({ name }: { name: IconName }) {

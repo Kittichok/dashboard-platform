@@ -132,6 +132,11 @@ public class WidgetService {
         return reordered;
     }
 
+    public Widget importWidget(UUID dashboardId, long dashboardVersion, String title, WidgetType type,
+                               int x, int y, int w, int h, String displayConfigJson, String dataSourceJson) {
+        return addWidget(dashboardId, dashboardVersion, title, type, x, y, w, h, displayConfigJson, dataSourceJson);
+    }
+
     public void removeWidget(UUID dashboardId, UUID widgetId, long dashboardVersion) {
         ensureDashboardExists(dashboardId);
         var widgets = new ArrayList<>(widgetRepository.findAll(dashboardId));

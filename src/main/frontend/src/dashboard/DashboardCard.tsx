@@ -7,6 +7,7 @@ type DashboardCardProps = {
   onClick: (dashboard: Dashboard) => void;
   onRename: (dashboard: Dashboard) => void;
   onDuplicate: (dashboard: Dashboard) => void;
+  onExport: (dashboard: Dashboard) => void;
   onDelete: (dashboard: Dashboard) => void;
 };
 
@@ -16,6 +17,7 @@ export function DashboardCard({
   onClick,
   onRename,
   onDuplicate,
+  onExport,
   onDelete
 }: DashboardCardProps) {
   return (
@@ -57,6 +59,13 @@ export function DashboardCard({
               onClick={(e) => { e.stopPropagation(); onDuplicate(dashboard); }}
             >
               <Icon name="copy" /> Duplicate
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={(e) => { e.stopPropagation(); onExport(dashboard); }}
+            >
+              <Icon name="download" /> Export
             </button>
             <button
               type="button"
