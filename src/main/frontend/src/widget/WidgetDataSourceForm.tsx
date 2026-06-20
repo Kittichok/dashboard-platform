@@ -84,7 +84,10 @@ export function WidgetDataSourceForm({
   const [tables, setTables] = useState<string[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [fetchResult, setFetchResult] = useState<WidgetFetchResultData | null>(null);
+  const [selectedFieldsText, setSelectedFieldsText] = useState("[]");
+  const [selectedFieldsError, setSelectedFieldsError] = useState<string | null>(null);
   const selectedDisplayFields = selectedFieldsFromConfig(displayConfig ?? widget.displayConfig);
+  const selectedDisplayFieldsJson = JSON.stringify(selectedDisplayFields, null, 2);
   const selectableFields = isSuccessfulFetchResult(fetchResult) ? extractSelectableFields(fetchResult.data) : [];
   const supportsFieldSelection = widget.type === "table" || widget.type === "json_preview";
 
@@ -97,6 +100,11 @@ export function WidgetDataSourceForm({
     if (!tableName) { setColumns([]); return; }
     listColumns(dashboardId, tableName).then(setColumns).catch(() => setColumns([]));
   }, [dashboardId, tableName]);
+
+  useEffect(() => {
+    setSelectedFieldsText(selectedDisplayFieldsJson);
+    setSelectedFieldsError(null);
+  }, [selectedDisplayFieldsJson]);
 
   useEffect(() => {
     if (sourceType === "rest") {
@@ -143,6 +151,21 @@ export function WidgetDataSourceForm({
 
   function updateDisplayFields(fields: string[]) {
     onDisplayConfigChange?.(withSelectedFields(displayConfig ?? widget.displayConfig, fields));
+  }
+
+  function updateSelectedFieldsText(value: string) {
+    setSelectedFieldsText(value);
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (!Array.isArray(parsed) || !parsed.every((field) => typeof field === "string")) {
+        setSelectedFieldsError("selectedFields must be a JSON array of strings.");
+        return;
+      }
+      setSelectedFieldsError(null);
+      updateDisplayFields(parsed);
+    } catch {
+      setSelectedFieldsError("selectedFields must be valid JSON.");
+    }
   }
 
   function currentDataSource(): DataSource {
@@ -324,13 +347,34 @@ export function WidgetDataSourceForm({
       <button type="button" className="button secondary" onClick={testFetch} style={{ marginTop: "8px" }}>
         Test Fetch
       </button>
-      {fetchResult ? <WidgetFetchResult result={fetchResult} /> : null}
+      {fetchResult && !supportsFieldSelection ? <WidgetFetchResult result={fetchResult} /> : null}
       {supportsFieldSelection ? (
-        <WidgetFieldSelector
-          fields={selectableFields}
-          selectedFields={selectedDisplayFields}
-          onChange={updateDisplayFields}
-        />
+        <>
+          <WidgetFieldSelector
+            fields={selectableFields}
+            selectedFields={selectedDisplayFields}
+            onChange={updateDisplayFields}
+          />
+          <label className="dialog-field" style={{ marginTop: "12px" }}>
+            <span>selectedFields</span>
+            <textarea
+              aria-invalid={Boolean(selectedFieldsError)}
+              value={selectedFieldsText}
+              onChange={(e) => updateSelectedFieldsText(e.target.value)}
+              rows={4}
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "7px",
+                border: "1px solid var(--line)",
+                background: "var(--surface-warm)",
+                fontFamily: "monospace",
+                fontSize: "12px"
+              }}
+            />
+            {selectedFieldsError ? <small className="field-error">{selectedFieldsError}</small> : null}
+          </label>
+        </>
       ) : null}
     </fieldset>
   );

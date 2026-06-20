@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -288,6 +288,81 @@ describe("DashboardEditor", () => {
           dataSourceJson: JSON.stringify(jsonPreviewWidget.dataSource)
         })
       })
+    );
+  });
+
+  it("shows selectedFields before fetch and saves raw field edits", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([jsonPreviewWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-2", name: "Users API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
+    fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      ...jsonPreviewWidget,
+      displayConfig: { selectedFields: ["name", "detail.obj.key"] }
+    }));
+
+    renderEditor();
+
+    const card = (await screen.findByRole("heading", { name: "Users" })).closest("article");
+    expect(card).not.toBeNull();
+    await user.click(card!);
+
+    const panel = screen.getByRole("dialog", { name: /edit widget/i });
+    const selectedFieldsInput = within(panel).getByRole("textbox", { name: "selectedFields" });
+    expect(selectedFieldsInput).toHaveValue("[]");
+
+    fireEvent.change(selectedFieldsInput, { target: { value: JSON.stringify(["name", "detail.obj.key"]) } });
+    await user.click(within(panel).getByRole("button", { name: /save/i }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "/api/dashboards/dashboard-1/widgets/widget-3?dashboardVersion=4",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          title: "Users",
+          type: "json_preview",
+          x: 0,
+          y: 2,
+          w: 3,
+          h: 2,
+          displayConfigJson: JSON.stringify({ selectedFields: ["name", "detail.obj.key"] }),
+          dataSourceJson: JSON.stringify(jsonPreviewWidget.dataSource)
+        })
+      })
+    );
+  });
+
+  it("keeps selectedFields text synchronized with fetched field checkboxes", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([jsonPreviewWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-2", name: "Users API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
+    fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      name: "Adeel Solangi",
+      detail: {
+        obj: { key: "value" }
+      }
+    }));
+
+    renderEditor();
+
+    const card = (await screen.findByRole("heading", { name: "Users" })).closest("article");
+    expect(card).not.toBeNull();
+    await user.click(card!);
+
+    const panel = screen.getByRole("dialog", { name: /edit widget/i });
+    await user.click(within(panel).getByRole("button", { name: /test fetch/i }));
+    await user.click(await within(panel).findByRole("checkbox", { name: "detail.obj.key" }));
+
+    expect(within(panel).getByRole("textbox", { name: "selectedFields" })).toHaveValue(
+      JSON.stringify(["detail.obj.key"], null, 2)
     );
   });
 });
