@@ -60,6 +60,32 @@ describe("DataSourceLibrary", () => {
     expect(screen.getByText(/no data sources found/i)).toBeInTheDocument();
   });
 
+  it("renders header summaries and tolerates imported configs without headers", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      {
+        id: "source-1",
+        name: "Orders API",
+        type: "rest",
+        config: {
+          baseUrl: "https://api.example.test/orders",
+          authentication: { type: "none" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-Tenant": "ops"
+          }
+        },
+        version: 1
+      }
+    ]));
+
+    renderLibrary();
+
+    expect(await screen.findByText(/Content-Type: application\/json/i)).toBeInTheDocument();
+    expect(screen.getByText(/Accept: application\/json/i)).toBeInTheDocument();
+    expect(screen.getByText(/\+1 more/i)).toBeInTheDocument();
+  });
+
   it("seeds Content-Type for new data sources and lets the user edit header rows", async () => {
     const user = userEvent.setup();
     fetchMock
@@ -176,13 +202,27 @@ describe("DataSourceLibrary", () => {
       type: "rest",
       config: {
         baseUrl: "https://api.example.test/billing",
-        authentication: { type: "none" },
-        headers: { "Content-Type": "application/json" }
+        authentication: { type: "none" }
       }
     })], "billing.json", { type: "application/json" });
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(fileInput, file);
     expect(await screen.findByRole("heading", { name: "Billing API" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/data-sources/import",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          name: "Billing API",
+          type: "rest",
+          config: {
+            baseUrl: "https://api.example.test/billing",
+            authentication: { type: "none" }
+          }
+        })
+      })
+    );
 
     const ordersCard = screen.getByRole("heading", { name: "Orders API" }).closest("article");
     expect(ordersCard).not.toBeNull();

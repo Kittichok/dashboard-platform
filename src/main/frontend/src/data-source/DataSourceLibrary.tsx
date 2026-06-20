@@ -64,7 +64,7 @@ export function DataSourceLibrary() {
       return dataSources;
     }
     return dataSources.filter((dataSource) =>
-      `${dataSource.name} ${dataSource.config.baseUrl}`.toLowerCase().includes(normalized)
+      `${dataSource.name} ${dataSource.config.baseUrl} ${headerSearchText(dataSource)}`.toLowerCase().includes(normalized)
     );
   }, [dataSources, searchText]);
 
@@ -242,6 +242,14 @@ export function DataSourceLibrary() {
                   <p className="eyebrow" style={{ marginBottom: "10px" }}>REST API Source</p>
                   <h2>{dataSource.name}</h2>
                   <p>{dataSource.config.baseUrl}</p>
+                  <div className="card-meta" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    {visibleHeaderEntries(dataSource).map(([name, value]) => (
+                      <span key={name}>{name}: {value}</span>
+                    ))}
+                    {hiddenHeaderCount(dataSource) > 0 ? (
+                      <span>+{hiddenHeaderCount(dataSource)} more</span>
+                    ) : null}
+                  </div>
                   <span className="card-meta">Version {dataSource.version}</span>
                   <div className="card-actions">
                     <button type="button" className="button secondary" onClick={() => openDialog({ type: "edit", dataSource })}>
@@ -299,6 +307,24 @@ function messageFor(failure: DataSourceFailure) {
 
 function slug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function headerEntries(dataSource: DataSource) {
+  return Object.entries(dataSource.config.headers ?? {});
+}
+
+function visibleHeaderEntries(dataSource: DataSource) {
+  return headerEntries(dataSource).slice(0, 2);
+}
+
+function hiddenHeaderCount(dataSource: DataSource) {
+  return Math.max(0, headerEntries(dataSource).length - visibleHeaderEntries(dataSource).length);
+}
+
+function headerSearchText(dataSource: DataSource) {
+  return headerEntries(dataSource)
+    .map(([name, value]) => `${name} ${value}`)
+    .join(" ");
 }
 
 async function readFileText(file: File): Promise<string> {
