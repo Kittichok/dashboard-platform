@@ -6,6 +6,7 @@ export type AuthenticationConfig =
 export interface RestApiSourceConfig {
   baseUrl: string;
   authentication: AuthenticationConfig;
+  headers: Record<string, string>;
 }
 
 export interface DataSourceReference {

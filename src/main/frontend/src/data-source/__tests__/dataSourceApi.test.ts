@@ -33,7 +33,8 @@ describe("dataSourceApi", () => {
         type: "rest",
         config: {
           baseUrl: "https://api.example.test",
-          authentication: { type: "none" }
+          authentication: { type: "none" },
+          headers: { "Content-Type": "application/json" }
         },
         version: 2
       }
@@ -43,7 +44,8 @@ describe("dataSourceApi", () => {
       expect.objectContaining({
         name: "Orders API",
         config: expect.objectContaining({
-          baseUrl: "https://api.example.test"
+          baseUrl: "https://api.example.test",
+          headers: { "Content-Type": "application/json" }
         })
       })
     ]);
@@ -54,14 +56,22 @@ describe("dataSourceApi", () => {
       id: "source-1",
       name: "Orders API",
       type: "rest",
-      config: { baseUrl: "https://api.example.test", authentication: { type: "none" } },
+      config: {
+        baseUrl: "https://api.example.test",
+        authentication: { type: "none" },
+        headers: { "Content-Type": "application/json" }
+      },
       version: 1
     }, { status: 201 }));
     fetchMock.mockResolvedValueOnce(jsonResponse({
       id: "source-1",
       name: "Orders API V2",
       type: "rest",
-      config: { baseUrl: "https://api.example.test/v2", authentication: { type: "none" } },
+      config: {
+        baseUrl: "https://api.example.test/v2",
+        authentication: { type: "none" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" }
+      },
       version: 2
     }));
 
@@ -70,7 +80,8 @@ describe("dataSourceApi", () => {
       type: "rest",
       config: {
         baseUrl: "https://api.example.test",
-        authentication: { type: "none" }
+        authentication: { type: "none" },
+        headers: { "Content-Type": "application/json" }
       }
     });
     await updateDataSource("source-1", {
@@ -78,7 +89,8 @@ describe("dataSourceApi", () => {
       type: "rest",
       config: {
         baseUrl: "https://api.example.test/v2",
-        authentication: { type: "none" }
+        authentication: { type: "none" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" }
       },
       version: 1
     });
@@ -93,7 +105,8 @@ describe("dataSourceApi", () => {
           type: "rest",
           config: {
             baseUrl: "https://api.example.test",
-            authentication: { type: "none" }
+            authentication: { type: "none" },
+            headers: { "Content-Type": "application/json" }
           }
         })
       })
@@ -108,7 +121,8 @@ describe("dataSourceApi", () => {
           type: "rest",
           config: {
             baseUrl: "https://api.example.test/v2",
-            authentication: { type: "none" }
+            authentication: { type: "none" },
+            headers: { "Content-Type": "application/json", Accept: "application/json" }
           },
           version: 1
         })
@@ -123,7 +137,8 @@ describe("dataSourceApi", () => {
         type: "rest",
         config: {
           baseUrl: "https://api.example.test",
-          authentication: { type: "none" }
+          authentication: { type: "none" },
+          headers: { "Content-Type": "application/json" }
         }
       })
     );
@@ -133,7 +148,8 @@ describe("dataSourceApi", () => {
       type: "rest",
       config: {
         baseUrl: "https://api.example.test",
-        authentication: { type: "none" }
+        authentication: { type: "none" },
+        headers: { "Content-Type": "application/json" }
       }
     });
   });
