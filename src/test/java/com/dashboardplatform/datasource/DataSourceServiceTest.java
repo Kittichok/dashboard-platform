@@ -69,21 +69,88 @@ class DataSourceServiceTest {
     }
 
     @Test
+    void create_data_source_rejects_duplicate_headers_case_insensitively() {
+        var service = createService(
+            new InMemoryDataSourceRepository(),
+            new InMemoryDashboardRepository(),
+            new InMemoryWidgetRepository(),
+            uuidSequence(UUID.fromString("11111111-1111-1111-1111-111111111111")));
+        var headers = new LinkedHashMap<String, Object>();
+        headers.put("Content-Type", "application/json");
+        headers.put("content-type", "application/problem+json");
+
+        var exception = assertThrows(
+            DataSourceValidationException.class,
+            () -> service.createDataSource(
+                "Orders API",
+                "rest",
+                restConfig("https://api.example.test", Map.of("type", "none"), headers)));
+
+        assertEquals("Header names must be unique.", exception.fieldErrors().get("config.headers"));
+    }
+
+    @Test
+    void create_data_source_rejects_headers_that_override_authentication_header() {
+        var service = createService(
+            new InMemoryDataSourceRepository(),
+            new InMemoryDashboardRepository(),
+            new InMemoryWidgetRepository(),
+            uuidSequence(UUID.fromString("11111111-1111-1111-1111-111111111111")));
+
+        var exception = assertThrows(
+            DataSourceValidationException.class,
+            () -> service.createDataSource(
+                "Orders API",
+                "rest",
+                restConfig(
+                    "https://api.example.test",
+                    Map.of("type", "api_key_header", "headerName", "X-API-Key", "value", "secret"),
+                    Map.of("x-api-key", "override"))));
+
+        assertEquals(
+            "Default headers cannot override the authentication header.",
+            exception.fieldErrors().get("config.headers"));
+    }
+
+    @Test
     void import_and_export_round_trip_config() {
         var repository = new InMemoryDataSourceRepository();
         var service = createService(repository, new InMemoryDashboardRepository(), new InMemoryWidgetRepository(), uuidSequence(
             UUID.fromString("11111111-1111-1111-1111-111111111111")));
 
-        var created = service.importDataSource("Orders API", "rest", Map.of(
-            "baseUrl", "https://api.example.test",
-            "authentication", Map.of("type", "bearer_token", "value", "secret")));
+        var created = service.importDataSource(
+            "Orders API",
+            "rest",
+            restConfig(
+                "https://api.example.test",
+                Map.of("type", "bearer_token", "value", "secret"),
+                Map.of("Content-Type", "application/json")));
         var exported = service.exportDataSource(created.id());
 
         assertEquals("Orders API", exported.get("name"));
         assertEquals("rest", exported.get("type"));
         assertEquals(Map.of(
             "baseUrl", "https://api.example.test",
-            "authentication", Map.of("type", "bearer_token", "value", "secret")), exported.get("config"));
+            "authentication", Map.of("type", "bearer_token", "value", "secret"),
+            "headers", Map.of("Content-Type", "application/json")), exported.get("config"));
+    }
+
+    @Test
+    void export_data_source_includes_empty_headers_when_missing_from_input() {
+        var repository = new InMemoryDataSourceRepository();
+        var service = createService(repository, new InMemoryDashboardRepository(), new InMemoryWidgetRepository(), uuidSequence(
+            UUID.fromString("11111111-1111-1111-1111-111111111111")));
+
+        var created = service.createDataSource(
+            "Orders API",
+            "rest",
+            Map.of(
+                "baseUrl", "https://api.example.test",
+                "authentication", Map.of("type", "none")));
+
+        assertEquals(
+            Map.of(),
+            ((Map<?, ?>) service.exportDataSource(created.id()).get("config")).get("headers"));
     }
 
     @Test
@@ -216,6 +283,18 @@ class DataSourceServiceTest {
             }
             return remaining.removeFirst();
         };
+    }
+
+    private Map<String, Object> restConfig(
+        String baseUrl,
+        Map<String, Object> authentication,
+        Map<String, ?> headers
+    ) {
+        var config = new LinkedHashMap<String, Object>();
+        config.put("baseUrl", baseUrl);
+        config.put("authentication", new LinkedHashMap<>(authentication));
+        config.put("headers", new LinkedHashMap<>(headers));
+        return config;
     }
 
     private static final class InMemoryDataSourceRepository implements DataSourceRepository {
