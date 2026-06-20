@@ -11,12 +11,25 @@ export type WidgetFetchResult =
   | { ok: true; data: unknown }
   | { ok: false; status: number };
 
-export interface RestDataSource {
+export interface LegacyRestDataSource {
   type: 'rest';
   url: string;
   method: 'GET' | 'POST';
   headers: Record<string, string>;
   body: string | null;
+}
+
+export interface WidgetRestRequest {
+  path: string;
+  method: 'GET' | 'POST';
+  headers: Record<string, string>;
+  body: string | null;
+}
+
+export interface SelectedRestDataSource {
+  kind: 'rest';
+  dataSourceId: string;
+  request: WidgetRestRequest;
 }
 
 export interface TableDataSource {
@@ -26,7 +39,7 @@ export interface TableDataSource {
   limit: number | null;
 }
 
-export type DataSource = RestDataSource | TableDataSource;
+export type DataSource = SelectedRestDataSource | LegacyRestDataSource | TableDataSource;
 
 export interface Widget {
   id: string;

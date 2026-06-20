@@ -38,4 +38,32 @@ class WidgetResponseTest {
         assertThat(response.get("displayConfig")).isInstanceOf(Map.class);
         assertThat(response.get("dataSource")).isInstanceOf(Map.class);
     }
+
+    @Test
+    void serializes_widget_request_and_selected_data_source_reference() throws Exception {
+        var widget = new Widget(
+            UUID.fromString("11111111-1111-1111-1111-111111111111"),
+            "Orders",
+            WidgetType.table,
+            0,
+            0,
+            4,
+            3,
+            """
+                {"selectedFields":["rows.id"]}
+                """,
+            """
+                {"kind":"rest","dataSourceId":"22222222-2222-2222-2222-222222222222","request":{"path":"/orders","method":"GET","headers":{},"body":null}}
+                """);
+
+        String json = objectMapper.writeValueAsString(WidgetResponse.from(widget));
+        Map<String, Object> response = objectMapper.readValue(json, new TypeReference<>() {
+        });
+
+        assertThat(response).containsKey("dataSource");
+        assertThat(response.get("dataSource")).isInstanceOf(Map.class);
+        assertThat(((Map<?, ?>) response.get("dataSource")).get("dataSourceId"))
+            .isEqualTo("22222222-2222-2222-2222-222222222222");
+        assertThat(((Map<?, ?>) response.get("dataSource")).get("request")).isInstanceOf(Map.class);
+    }
 }

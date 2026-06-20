@@ -22,7 +22,7 @@ class DatabaseMigrationRunnerTest {
     Path tempDir;
 
     @Test
-    void runCreatesSchemaHistoryAndDashboardsTables() {
+    void runCreatesSchemaHistoryDashboardsAndDataSourcesTables() {
         var dataSource = sqliteDataSource(tempDir.resolve("tables.db"));
 
         new DatabaseMigrationRunner(dataSource).run();
@@ -30,6 +30,7 @@ class DatabaseMigrationRunnerTest {
         var jdbcTemplate = new JdbcTemplate(dataSource);
         assertTrue(tableExists(jdbcTemplate, "schema_history"));
         assertTrue(tableExists(jdbcTemplate, "dashboards"));
+        assertTrue(tableExists(jdbcTemplate, "data_sources"));
     }
 
     @Test
@@ -42,11 +43,11 @@ class DatabaseMigrationRunnerTest {
 
         var jdbcTemplate = new JdbcTemplate(dataSource);
         assertIterableEquals(
-            List.of(1L, 2L),
+            List.of(1L, 2L, 3L),
             jdbcTemplate.query(
                 "select version from schema_history order by version",
                 (resultSet, rowNum) -> resultSet.getLong("version")));
-        assertEquals(2, jdbcTemplate.queryForObject("select count(*) from schema_history", Integer.class));
+        assertEquals(3, jdbcTemplate.queryForObject("select count(*) from schema_history", Integer.class));
     }
 
     @Test

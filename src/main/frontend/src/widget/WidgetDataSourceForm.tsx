@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { listDataSources } from "../data-source/dataSourceApi";
+import type { DataSource as SharedDataSource } from "../data-source/types";
 import {
   extractSelectableFields,
   selectedFieldsFromConfig,
@@ -29,6 +31,10 @@ function isSuccessfulFetchResult(
   return Boolean(result && "ok" in result && result.ok === true);
 }
 
+function isTableDataSource(dataSource: DataSource | null): dataSource is Extract<DataSource, { type: "table" }> {
+  return Boolean(dataSource && "type" in dataSource && dataSource.type === "table");
+}
+
 export function WidgetDataSourceForm({
   dashboardId,
   widget,
@@ -36,27 +42,45 @@ export function WidgetDataSourceForm({
   onChange,
   onDisplayConfigChange
 }: WidgetDataSourceFormProps) {
-  const initType = widget.dataSource?.type ?? "rest";
+  const initType = widget.dataSource && "type" in widget.dataSource ? widget.dataSource.type : "rest";
   const [sourceType, setSourceType] = useState<"rest" | "table">(initType);
-  const [url, setUrl] = useState(widget.dataSource?.type === "rest" ? widget.dataSource.url : "");
+  const [selectedSourceId, setSelectedSourceId] = useState(
+    widget.dataSource && "kind" in widget.dataSource && widget.dataSource.kind === "rest"
+      ? widget.dataSource.dataSourceId
+      : ""
+  );
+  const [path, setPath] = useState(
+    widget.dataSource && "kind" in widget.dataSource && widget.dataSource.kind === "rest"
+      ? widget.dataSource.request.path
+      : ""
+  );
   const [method, setMethod] = useState<"GET" | "POST">(
-    widget.dataSource?.type === "rest" ? widget.dataSource.method : "GET"
+    widget.dataSource && "kind" in widget.dataSource && widget.dataSource.kind === "rest"
+      ? widget.dataSource.request.method
+      : "GET"
   );
   const [headers, setHeaders] = useState<Record<string, string>>(
-    widget.dataSource?.type === "rest" ? widget.dataSource.headers : {}
+    widget.dataSource && "kind" in widget.dataSource && widget.dataSource.kind === "rest"
+      ? widget.dataSource.request.headers
+      : {}
   );
-  const [body, setBody] = useState(widget.dataSource?.type === "rest" ? widget.dataSource.body ?? "" : "");
+  const [body, setBody] = useState(
+    widget.dataSource && "kind" in widget.dataSource && widget.dataSource.kind === "rest"
+      ? widget.dataSource.request.body ?? ""
+      : ""
+  );
   const [headerKey, setHeaderKey] = useState("");
   const [headerValue, setHeaderValue] = useState("");
   const [tableName, setTableName] = useState(
-    widget.dataSource?.type === "table" ? widget.dataSource.table : ""
+    isTableDataSource(widget.dataSource) ? widget.dataSource.table : ""
   );
   const [selectedColumns, setSelectedColumns] = useState<string[]>(
-    widget.dataSource?.type === "table" ? widget.dataSource.columns : []
+    isTableDataSource(widget.dataSource) ? widget.dataSource.columns : []
   );
   const [rowLimit, setRowLimit] = useState<number | null>(
-    widget.dataSource?.type === "table" ? widget.dataSource.limit : null
+    isTableDataSource(widget.dataSource) ? widget.dataSource.limit : null
   );
+  const [restSources, setRestSources] = useState<SharedDataSource[]>([]);
   const [tables, setTables] = useState<string[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [fetchResult, setFetchResult] = useState<WidgetFetchResultData | null>(null);
@@ -65,6 +89,7 @@ export function WidgetDataSourceForm({
   const supportsFieldSelection = widget.type === "table" || widget.type === "json_preview";
 
   useEffect(() => {
+    listDataSources().then(setRestSources).catch(() => setRestSources([]));
     listTables(dashboardId).then(setTables).catch(() => {});
   }, [dashboardId]);
 
@@ -75,7 +100,16 @@ export function WidgetDataSourceForm({
 
   useEffect(() => {
     if (sourceType === "rest") {
-      onChange?.({ type: "rest", url, method, headers, body: body || null });
+      onChange?.({
+        kind: "rest",
+        dataSourceId: selectedSourceId,
+        request: {
+          path,
+          method,
+          headers,
+          body: body || null
+        }
+      });
     } else {
       onChange?.({
         type: "table",
@@ -84,7 +118,7 @@ export function WidgetDataSourceForm({
         limit: rowLimit,
       });
     }
-  }, [sourceType, url, method, headers, body, tableName, selectedColumns, rowLimit, onChange]);
+  }, [sourceType, selectedSourceId, path, method, headers, body, tableName, selectedColumns, rowLimit, onChange]);
 
   function addHeader() {
     if (!headerKey.trim()) return;
@@ -113,7 +147,16 @@ export function WidgetDataSourceForm({
 
   function currentDataSource(): DataSource {
     if (sourceType === "rest") {
-      return { type: "rest", url, method, headers, body: body || null };
+      return {
+        kind: "rest",
+        dataSourceId: selectedSourceId,
+        request: {
+          path,
+          method,
+          headers,
+          body: body || null
+        }
+      };
     }
     return { type: "table", table: tableName, columns: selectedColumns, limit: rowLimit };
   }
@@ -160,12 +203,22 @@ export function WidgetDataSourceForm({
             <div>String: {"{{region}}"} or {"{{region:string}}"}</div>
             <div>Datetime: {"{{from:datetime}}"} (renders as datetime picker in dashboard view)</div>
             <div style={{ marginTop: "6px" }}>
-              Example URL: https://api.example.com/events?region={"{{region}}"}&amp;from={"{{from:datetime}}"}
+              Example path: /events?region={"{{region}}"}&amp;from={"{{from:datetime}}"}
             </div>
           </div>
           <label className="dialog-field">
-            <span>URL</span>
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.example.com/data" />
+            <span>Data Source</span>
+            <select value={selectedSourceId} onChange={(e) => setSelectedSourceId(e.target.value)}
+              style={{ width: "100%", padding: "8px", borderRadius: "7px", border: "1px solid var(--line)", background: "var(--surface-warm)" }}>
+              <option value="">-- Select a data source --</option>
+              {restSources.map((source) => (
+                <option key={source.id} value={source.id}>{source.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="dialog-field">
+            <span>Path</span>
+            <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="/data" />
           </label>
           <label className="dialog-field">
             <span>Method</span>

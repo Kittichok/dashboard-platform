@@ -46,11 +46,14 @@ const latencyWidget = {
   h: 2,
   displayConfig: { value: "98.4" },
   dataSource: {
-    type: "rest",
-    url: "https://api.example.test/latency",
-    method: "GET",
-    headers: {},
-    body: null
+    kind: "rest",
+    dataSourceId: "source-1",
+    request: {
+      path: "/latency",
+      method: "GET",
+      headers: {},
+      body: null
+    }
   }
 };
 
@@ -76,11 +79,14 @@ const jsonPreviewWidget = {
   h: 2,
   displayConfig: null,
   dataSource: {
-    type: "rest",
-    url: "https://api.example.test/users",
-    method: "GET",
-    headers: {},
-    body: null
+    kind: "rest",
+    dataSourceId: "source-2",
+    request: {
+      path: "/users",
+      method: "GET",
+      headers: {},
+      body: null
+    }
   }
 };
 
@@ -106,6 +112,9 @@ describe("DashboardEditor", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-1", name: "Latency API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
     fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
     fetchMock.mockResolvedValueOnce(jsonResponse({
       ...latencyWidget,
@@ -125,7 +134,7 @@ describe("DashboardEditor", () => {
     await user.click(within(panel).getByRole("button", { name: /save/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      4,
+      5,
       "/api/dashboards/dashboard-1/widgets/widget-1?dashboardVersion=4",
       expect.objectContaining({
         method: "PATCH",
@@ -149,6 +158,9 @@ describe("DashboardEditor", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-1", name: "Latency API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
     fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
     fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true }));
 
@@ -160,10 +172,11 @@ describe("DashboardEditor", () => {
     await user.click(screen.getByRole("button", { name: /test fetch/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      4,
+      5,
       "/api/dashboards/dashboard-1/widgets/widget-1/fetch",
       expect.objectContaining({
-        method: "POST"
+        method: "POST",
+        body: JSON.stringify(latencyWidget.dataSource)
       })
     );
   });
@@ -172,6 +185,9 @@ describe("DashboardEditor", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-1", name: "Latency API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
     fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
 
     renderEditor();
@@ -182,13 +198,16 @@ describe("DashboardEditor", () => {
 
     expect(screen.getByText("Variable examples")).toBeInTheDocument();
     expect(screen.getByText(/\{\{region:string\}\}/)).toBeInTheDocument();
-    expect(screen.getByText(/Example URL:/)).toBeInTheDocument();
+    expect(screen.getByText(/Example path:/)).toBeInTheDocument();
   });
 
   it("does not change widget position through the edit panel", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-1", name: "Latency API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
     fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
     fetchMock.mockResolvedValueOnce(jsonResponse(latencyWidget));
 
@@ -201,7 +220,7 @@ describe("DashboardEditor", () => {
     await user.click(screen.getByRole("button", { name: /save/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      4,
+      5,
       "/api/dashboards/dashboard-1/widgets/widget-1?dashboardVersion=4",
       expect.objectContaining({
         method: "PATCH",
@@ -223,6 +242,9 @@ describe("DashboardEditor", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
     fetchMock.mockResolvedValueOnce(jsonResponse([jsonPreviewWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-2", name: "Users API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
     fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
     fetchMock.mockResolvedValueOnce(jsonResponse({
       name: "Adeel Solangi",
@@ -251,7 +273,7 @@ describe("DashboardEditor", () => {
     await user.click(within(panel).getByRole("button", { name: /save/i }));
 
     expect(fetchMock).toHaveBeenNthCalledWith(
-      5,
+      6,
       "/api/dashboards/dashboard-1/widgets/widget-3?dashboardVersion=4",
       expect.objectContaining({
         method: "PATCH",
