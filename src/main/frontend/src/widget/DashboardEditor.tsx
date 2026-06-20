@@ -3,10 +3,10 @@ import { Link, useParams } from "react-router-dom";
 
 import { AppSidebar } from "../dashboard/AppSidebar";
 import { useNavCollapse } from "../dashboard/NavCollapseContext";
-import { getDashboard } from "../dashboard/dashboardApi";
+import { exportDashboard, getDashboard } from "../dashboard/dashboardApi";
 import type { ApiFailure, Dashboard, NetworkFailure } from "../dashboard/types";
 import { Icon } from "../dashboard/icons";
-import { addWidget, listWidgets, removeWidget, updateWidget } from "./widgetApi";
+import { addWidget, importWidget, listWidgets, removeWidget, updateWidget } from "./widgetApi";
 import { WidgetAddDialog } from "./WidgetAddDialog";
 import { WidgetEditPanel } from "./WidgetEditPanel";
 import { WidgetRenderer } from "./WidgetRenderer";
@@ -56,6 +56,7 @@ export function DashboardEditor() {
     dy: number;
   } | null>(null);
 
+  const widgetImportRef = useRef<HTMLInputElement>(null);
   const selectedWidget = widgets.find((widget) => widget.id === selectedWidgetId) ?? null;
 
   const load = useCallback(async () => {
@@ -213,6 +214,58 @@ export function DashboardEditor() {
     }
   }
 
+  async function handleExportDashboard() {
+    if (!id) return;
+    try {
+      const data = await exportDashboard(id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(dashboard?.name ?? "dashboard").replace(/[^a-zA-Z0-9-_ ]/g, "")}.dashboard.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const failure = err as ApiFailure | NetworkFailure;
+      setError(errToEditorError(failure, "Failed to export dashboard."));
+    }
+  }
+
+  async function handleImportWidgetFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !id || !dashboard) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as Record<string, unknown>;
+      const widget = await importWidget(id, dashboard.version, {
+        title: (data.title as string) || "Imported Widget",
+        type: (data.type as import("./types").WidgetType) || "table",
+        x: (data.x as number) ?? 0,
+        y: (data.y as number) ?? 0,
+        w: (data.w as number) ?? 6,
+        h: (data.h as number) ?? 4,
+        displayConfig: data.displayConfig as Record<string, unknown> | null ?? null,
+        dataSource: data.dataSource as import("./types").DataSource | null ?? null
+      });
+      setDashboard((prev) => prev ? { ...prev, version: prev.version + 1 } : null);
+      setWidgets((current) => [...current, widget]);
+    } catch (err: unknown) {
+      const failure = err as ApiFailure | NetworkFailure;
+      if (failure.kind === "api" && failure.status === 409) {
+        setConflict(true);
+      } else if (err instanceof SyntaxError) {
+        setError({ message: "Invalid JSON file." });
+      } else {
+        setError(errToEditorError(failure, "Failed to import widget."));
+      }
+    }
+    if (widgetImportRef.current) {
+      widgetImportRef.current.value = "";
+    }
+  }
+
   if (loading) {
     return (
       <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
@@ -239,6 +292,19 @@ export function DashboardEditor() {
             <Link to={`/dashboards/${id}/view`} className="button secondary" style={{ textDecoration: "none" }}>
               <Icon name="dashboard" /> View
             </Link>
+            <button type="button" className="button secondary" onClick={handleExportDashboard}>
+              <Icon name="download" /> Export
+            </button>
+            <button type="button" className="button secondary" onClick={() => widgetImportRef.current?.click()}>
+              <Icon name="upload" /> Import Widget
+            </button>
+            <input
+              ref={widgetImportRef}
+              type="file"
+              accept=".json"
+              style={{ display: "none" }}
+              onChange={handleImportWidgetFile}
+            />
             <button type="button" className="button primary" onClick={() => { setAddFieldErrors({}); setAddOperationMessage(null); setShowAddDialog(true); }}>
               <Icon name="plus" /> Add Widget
             </button>

@@ -65,6 +65,37 @@ export async function reorderWidgets(
   return widgets.map(normalizeWidget);
 }
 
+export async function exportWidget(
+  dashboardId: string,
+  widgetId: string
+): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(
+    `/api/dashboards/${dashboardId}/widgets/${widgetId}/export`,
+    { method: "GET" }
+  );
+}
+
+export async function importWidget(
+  dashboardId: string,
+  dashboardVersion: number,
+  input: WidgetInput
+): Promise<Widget> {
+  const body = {
+    title: input.title,
+    type: input.type,
+    x: input.x,
+    y: input.y,
+    w: input.w,
+    h: input.h,
+    displayConfig: input.displayConfig ?? null,
+    dataSource: input.dataSource ?? null
+  };
+  return request<WidgetResponse>(
+    `/api/dashboards/${dashboardId}/widgets/import${versionQuery(dashboardVersion)}`,
+    jsonRequest("POST", body)
+  ).then(normalizeWidget);
+}
+
 export async function removeWidget(
   dashboardId: string,
   widgetId: string,

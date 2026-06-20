@@ -36,6 +36,19 @@ export async function duplicateDashboard(id: string): Promise<Dashboard> {
   return request<Dashboard>(`/api/dashboards/${id}/duplicate`, { method: "POST" });
 }
 
+export async function exportDashboard(id: string): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(`/api/dashboards/${id}/export`, { method: "GET" });
+}
+
+export async function importDashboard(input: {
+  name: string;
+  description?: string;
+  widgets?: Record<string, unknown>[];
+  variableState?: Record<string, string>;
+}): Promise<Dashboard> {
+  return request<Dashboard>("/api/dashboards/import", jsonRequest("POST", input));
+}
+
 export async function deleteDashboard(id: string, version: number): Promise<void> {
   await request<void>(`/api/dashboards/${id}?version=${encodeURIComponent(version)}`, {
     method: "DELETE"

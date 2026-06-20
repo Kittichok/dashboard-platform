@@ -88,6 +88,24 @@ public class WidgetController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/import")
+    public ResponseEntity<WidgetResponse> importWidget(
+        @PathVariable UUID dashboardId,
+        @RequestParam long dashboardVersion,
+        @Valid @RequestBody WidgetRequests.ImportWidgetRequest request
+    ) throws JsonProcessingException {
+        var displayConfigJson = request.displayConfig() != null ? MAPPER.writeValueAsString(request.displayConfig()) : null;
+        var dataSourceJson = request.dataSource() != null ? MAPPER.writeValueAsString(request.dataSource()) : null;
+        var widget = widgetService.importWidget(
+            dashboardId, dashboardVersion,
+            request.title(), request.type(),
+            request.x(), request.y(), request.w(), request.h(),
+            displayConfigJson, dataSourceJson);
+        return ResponseEntity
+            .created(URI.create("/api/dashboards/" + dashboardId + "/widgets/" + widget.id()))
+            .body(WidgetResponse.from(widget));
+    }
+
     @GetMapping("/tables")
     public List<String> listTables() {
         return widgetService.listTables();
