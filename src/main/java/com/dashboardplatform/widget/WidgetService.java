@@ -218,12 +218,14 @@ public class WidgetService {
             .orElseThrow(() -> new WidgetFetchException(400, "Selected data source does not exist."));
         var config = objectMapper.readValue(source.configJson(), RestSourceConfig.class);
         var requestConfig = selection.request() == null ? new RestRequest("", "GET", Map.of(), null) : selection.request();
-        var requestHeaders = new LinkedHashMap<>(requestConfig.headers() == null ? Map.<String, String>of() : requestConfig.headers());
-        applyAuthenticationHeader(config.authentication(), requestHeaders);
+        var mergedHeaders = new LinkedHashMap<String, String>();
+        applyAuthenticationHeader(config.authentication(), mergedHeaders);
+        mergeDefaultHeaders(config.headers(), mergedHeaders, config.authentication());
+        mergeWidgetHeaders(requestConfig.headers(), mergedHeaders, config.authentication());
         var method = "POST".equalsIgnoreCase(requestConfig.method()) ? HttpMethod.POST : HttpMethod.GET;
         var request = restClient.method(method)
             .uri(resolveRequestUrl(config.baseUrl(), requestConfig.path()))
-            .headers(headers -> requestHeaders.forEach(headers::set));
+            .headers(headers -> mergedHeaders.forEach(headers::set));
         if (method == HttpMethod.POST && requestConfig.body() != null && !requestConfig.body().isBlank()) {
             request = request.body(requestConfig.body());
         }
@@ -381,6 +383,40 @@ public class WidgetService {
         }
     }
 
+    private void mergeDefaultHeaders(
+        Map<String, String> defaultHeaders,
+        Map<String, String> mergedHeaders,
+        Authentication authentication
+    ) {
+        if (defaultHeaders == null || defaultHeaders.isEmpty()) {
+            return;
+        }
+        var authHeaderName = authentication == null ? null : authentication.headerName();
+        for (var entry : defaultHeaders.entrySet()) {
+            if (authHeaderName != null && entry.getKey() != null && entry.getKey().equalsIgnoreCase(authHeaderName)) {
+                throw new WidgetFetchException(400, "Default headers cannot override the data source authentication header.");
+            }
+            mergedHeaders.put(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void mergeWidgetHeaders(
+        Map<String, String> requestHeaders,
+        Map<String, String> mergedHeaders,
+        Authentication authentication
+    ) {
+        if (requestHeaders == null || requestHeaders.isEmpty()) {
+            return;
+        }
+        var authHeaderName = authentication == null ? null : authentication.headerName();
+        for (var entry : requestHeaders.entrySet()) {
+            if (authHeaderName != null && entry.getKey() != null && entry.getKey().equalsIgnoreCase(authHeaderName)) {
+                throw new WidgetFetchException(400, "Widget request header conflicts with data source authentication header.");
+            }
+            mergedHeaders.put(entry.getKey(), entry.getValue());
+        }
+    }
+
     private String resolveRequestUrl(String baseUrl, String path) {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new WidgetFetchException(400, "Selected data source is invalid.");
@@ -437,7 +473,10 @@ public class WidgetService {
         }
     }
 
-    private record RestSourceConfig(String baseUrl, Authentication authentication) {
+    private record RestSourceConfig(String baseUrl, Authentication authentication, Map<String, String> headers) {
+        private RestSourceConfig {
+            headers = headers == null ? Collections.emptyMap() : headers;
+        }
     }
 
     private record Authentication(String type, String headerName, String value) {
