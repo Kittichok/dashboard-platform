@@ -97,6 +97,48 @@ class JdbcDashboardRepositoryTest {
     }
 
     @Test
+    void widgets_json_can_store_new_rest_source_reference_shape() {
+        var repository = createRepository(tempDir.resolve("rest-source-reference.db"));
+        var dashboard = dashboard(
+            UUID.fromString("11111111-1111-1111-1111-111111111111"),
+            "Service Operations",
+            "Incidents and platform health",
+            """
+                [{"id":"widget-1","title":"Orders","type":"table","x":0,"y":0,"w":4,"h":3,"displayConfigJson":null,"dataSourceJson":"{\\"kind\\":\\"rest\\",\\"dataSourceId\\":\\"22222222-2222-2222-2222-222222222222\\",\\"request\\":{\\"path\\":\\"/orders\\",\\"method\\":\\"GET\\",\\"headers\\":{},\\"body\\":null}}"}]
+                """,
+            1L,
+            Instant.parse("2026-06-15T09:00:00Z"),
+            Instant.parse("2026-06-15T09:00:00Z"));
+
+        repository.insert(dashboard);
+
+        var stored = repository.findById(dashboard.id());
+        assertTrue(stored.isPresent());
+        assertEquals(dashboard, stored.orElseThrow());
+    }
+
+    @Test
+    void widgets_json_can_store_legacy_inline_rest_data_source_shape() {
+        var repository = createRepository(tempDir.resolve("legacy-inline-rest.db"));
+        var dashboard = dashboard(
+            UUID.fromString("11111111-1111-1111-1111-111111111111"),
+            "Service Operations",
+            "Incidents and platform health",
+            """
+                [{"id":"widget-1","title":"Latency","type":"metric","x":0,"y":0,"w":3,"h":2,"displayConfigJson":null,"dataSourceJson":"{\\"type\\":\\"rest\\",\\"url\\":\\"https://api.example.test/latency\\",\\"method\\":\\"GET\\",\\"headers\\":{},\\"body\\":null}"}]
+                """,
+            1L,
+            Instant.parse("2026-06-15T09:00:00Z"),
+            Instant.parse("2026-06-15T09:00:00Z"));
+
+        repository.insert(dashboard);
+
+        var stored = repository.findById(dashboard.id());
+        assertTrue(stored.isPresent());
+        assertEquals(dashboard, stored.orElseThrow());
+    }
+
+    @Test
     void updateSucceedsOnlyWhenDashboardIdAndVersionMatch() {
         var repository = createRepository(tempDir.resolve("update.db"));
         var original = dashboard(

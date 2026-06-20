@@ -15,6 +15,14 @@ type RunWidgetRequestsInput = {
   onWidgetResult?: (widgetId: string, result: WidgetFetchResult) => void;
 };
 
+function isSelectedRestDataSource(dataSource: DataSource | null): dataSource is Extract<DataSource, { kind: "rest" }> {
+  return Boolean(dataSource && "kind" in dataSource && dataSource.kind === "rest");
+}
+
+function isLegacyRestDataSource(dataSource: DataSource | null): dataSource is Extract<DataSource, { type: "rest" }> {
+  return Boolean(dataSource && "type" in dataSource && dataSource.type === "rest");
+}
+
 export async function runWidgetRequests({
   dashboardId,
   widgets,
@@ -57,23 +65,55 @@ export function extractDataSourceVariables(widgets: Widget[]): DataSourceVariabl
   const names = new Map<string, DataSourceVariable>();
   for (const widget of widgets) {
     const source = widget.dataSource;
-    if (!source || source.type !== "rest") {
+    if (!source) {
       continue;
     }
-    collectVariables(source.url, names);
-    Object.entries(source.headers).forEach(([key, value]) => {
-      collectVariables(key, names);
-      collectVariables(value, names);
-    });
-    if (source.body) {
-      collectVariables(source.body, names);
+    if (isSelectedRestDataSource(source)) {
+      collectVariables(source.request.path, names);
+      Object.entries(source.request.headers).forEach(([key, value]) => {
+        collectVariables(key, names);
+        collectVariables(value, names);
+      });
+      if (source.request.body) {
+        collectVariables(source.request.body, names);
+      }
+      continue;
+    }
+    if (isLegacyRestDataSource(source)) {
+      collectVariables(source.url, names);
+      Object.entries(source.headers).forEach(([key, value]) => {
+        collectVariables(key, names);
+        collectVariables(value, names);
+      });
+      if (source.body) {
+        collectVariables(source.body, names);
+      }
     }
   }
   return Array.from(names.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function resolveDataSourceVariables(dataSource: Widget["dataSource"], variables: Record<string, string>): Widget["dataSource"] {
-  if (!dataSource || dataSource.type !== "rest") {
+  if (!dataSource) {
+    return dataSource;
+  }
+  if (isSelectedRestDataSource(dataSource)) {
+    return {
+      ...dataSource,
+      request: {
+        ...dataSource.request,
+        path: replaceVariables(dataSource.request.path, variables),
+        headers: Object.fromEntries(
+          Object.entries(dataSource.request.headers).map(([key, value]) => [
+            replaceVariables(key, variables),
+            replaceVariables(value, variables)
+          ])
+        ),
+        body: dataSource.request.body === null ? null : replaceVariables(dataSource.request.body, variables)
+      }
+    };
+  }
+  if (!isLegacyRestDataSource(dataSource)) {
     return dataSource;
   }
 

@@ -143,6 +143,49 @@ describe("WidgetRenderer response states", () => {
     expect(screen.queryByText(/hidden/)).not.toBeInTheDocument();
   });
 
+  it("table widget renders nested selected field paths as columns", () => {
+    render(
+      <WidgetRenderer
+        widget={widget({ type: "table", displayConfig: { selectedFields: ["detail.obj.key", "detail.name"] } })}
+        fetchData={ok([
+          {
+            id: 1,
+            detail: {
+              obj: { key: "value" },
+              name: "test"
+            }
+          }
+        ])}
+      />
+    );
+
+    expect(screen.getByRole("columnheader", { name: "detail.obj.key" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "detail.name" })).toBeInTheDocument();
+    expect(screen.getByText("value")).toBeInTheDocument();
+    expect(screen.getByText("test")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "id" })).not.toBeInTheDocument();
+  });
+
+  it("json_preview widget filters to nested selected field paths", () => {
+    render(
+      <WidgetRenderer
+        widget={widget({ type: "json_preview", displayConfig: { selectedFields: ["detail.obj.key"] } })}
+        fetchData={ok({
+          name: "Adeel Solangi",
+          detail: {
+            obj: { key: "value", extra: "ignore" },
+            name: "test"
+          }
+        })}
+      />
+    );
+
+    expect(screen.getByText(/"detail"/)).toBeInTheDocument();
+    expect(screen.getByText(/"key": "value"/)).toBeInTheDocument();
+    expect(screen.queryByText(/"name": "Adeel Solangi"/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/extra/)).not.toBeInTheDocument();
+  });
+
   it("does not display No data when data is present", () => {
     render(
       <WidgetRenderer

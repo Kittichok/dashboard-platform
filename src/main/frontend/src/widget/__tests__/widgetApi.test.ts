@@ -37,11 +37,14 @@ describe("widgetApi", () => {
         h: 2,
         displayConfig: { value: "98.4" },
         dataSource: {
-          type: "rest",
-          url: "https://api.example.test/latency",
-          method: "GET",
-          headers: {},
-          body: null
+          kind: "rest",
+          dataSourceId: "source-1",
+          request: {
+            path: "/latency",
+            method: "GET",
+            headers: {},
+            body: null
+          }
         }
       }
     ]));
@@ -50,7 +53,7 @@ describe("widgetApi", () => {
       expect.objectContaining({
         displayConfig: { value: "98.4" },
         dataSource: expect.objectContaining({
-          url: "https://api.example.test/latency"
+          dataSourceId: "source-1"
         })
       })
     ]);
@@ -108,6 +111,75 @@ describe("widgetApi", () => {
       "/api/dashboards/dashboard-1/widgets/widget-3?dashboardVersion=8",
       expect.objectContaining({
         method: "PATCH"
+      })
+    );
+  });
+
+  it("serializes selected data source id and widget request details", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      id: "widget-4",
+      title: "Orders",
+      type: "table",
+      x: 0,
+      y: 0,
+      w: 4,
+      h: 3,
+      displayConfig: null,
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-1",
+        request: {
+          path: "/orders",
+          method: "GET",
+          headers: {},
+          body: null
+        }
+      }
+    }));
+
+    await updateWidget("dashboard-1", "widget-4", 4, {
+      title: "Orders",
+      type: "table",
+      x: 0,
+      y: 0,
+      w: 4,
+      h: 3,
+      displayConfig: null,
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-1",
+        request: {
+          path: "/orders",
+          method: "GET",
+          headers: {},
+          body: null
+        }
+      }
+    });
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/dashboards/dashboard-1/widgets/widget-4?dashboardVersion=4",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          title: "Orders",
+          type: "table",
+          x: 0,
+          y: 0,
+          w: 4,
+          h: 3,
+          displayConfigJson: null,
+          dataSourceJson: JSON.stringify({
+            kind: "rest",
+            dataSourceId: "source-1",
+            request: {
+              path: "/orders",
+              method: "GET",
+              headers: {},
+              body: null
+            }
+          })
+        })
       })
     );
   });

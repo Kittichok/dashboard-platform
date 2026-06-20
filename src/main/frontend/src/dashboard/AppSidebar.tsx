@@ -4,7 +4,7 @@ import { Icon } from "./icons";
 
 type AppSidebarProps = {
   collapsed: boolean;
-  activeItem?: "library";
+  activeItem?: "library" | "data-sources";
   onToggle: () => void;
 };
 
@@ -38,6 +38,16 @@ export function AppSidebar({ collapsed, activeItem, onToggle }: AppSidebarProps)
         >
           <Icon name="dashboard" />
           <span className="nav-text">Dashboard Library</span>
+        </Link>
+        <Link
+          to="/data-sources"
+          className={`nav-item${activeItem === "data-sources" ? " active" : ""}`}
+          aria-label="Data Source Library"
+          title={collapsed ? "Data Source Library" : undefined}
+          style={{ textDecoration: "none" }}
+        >
+          <Icon name="database" />
+          <span className="nav-text">Data Source Library</span>
         </Link>
       </nav>
       <div className="sidebar-footer">

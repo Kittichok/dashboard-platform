@@ -1,16 +1,22 @@
 package com.dashboardplatform.widget;
 
+import com.dashboardplatform.datasource.DataSourceRepository;
 import com.dashboardplatform.dashboard.DashboardNotFoundException;
-import com.dashboardplatform.dashboard.DashboardVersionConflictException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetFetchException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetNotFoundException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetValidationException;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,20 +31,36 @@ public class WidgetService {
     private static final int MAX_TITLE_LENGTH = 120;
 
     private final WidgetRepository widgetRepository;
+    private final DataSourceRepository dataSourceRepository;
     private final RestClient restClient;
     private final Supplier<UUID> uuidSupplier;
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public WidgetService(WidgetRepository widgetRepository, JdbcTemplate jdbcTemplate) {
-        this(widgetRepository, RestClient.builder().build(), UUID::randomUUID, jdbcTemplate);
+    public WidgetService(
+        WidgetRepository widgetRepository,
+        DataSourceRepository dataSourceRepository,
+        JdbcTemplate jdbcTemplate,
+        ObjectMapper objectMapper
+    ) {
+        this(widgetRepository, dataSourceRepository, RestClient.builder().build(), UUID::randomUUID, jdbcTemplate, objectMapper);
     }
 
-    WidgetService(WidgetRepository widgetRepository, RestClient restClient, Supplier<UUID> uuidSupplier, JdbcTemplate jdbcTemplate) {
+    WidgetService(
+        WidgetRepository widgetRepository,
+        DataSourceRepository dataSourceRepository,
+        RestClient restClient,
+        Supplier<UUID> uuidSupplier,
+        JdbcTemplate jdbcTemplate,
+        ObjectMapper objectMapper
+    ) {
         this.widgetRepository = widgetRepository;
+        this.dataSourceRepository = dataSourceRepository;
         this.restClient = restClient;
         this.uuidSupplier = uuidSupplier;
         this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
     }
 
     public List<Widget> listWidgets(UUID dashboardId) {
@@ -48,6 +70,7 @@ public class WidgetService {
     public Widget addWidget(UUID dashboardId, long dashboardVersion, String title, WidgetType type,
                             int x, int y, int w, int h, String displayConfigJson, String dataSourceJson) {
         var errors = validate(title, type, w, h);
+        validateDataSourceSelection(dataSourceJson, errors);
         if (!errors.isEmpty()) {
             throw new WidgetValidationException(errors);
         }
@@ -64,6 +87,7 @@ public class WidgetService {
                                String title, WidgetType type, int x, int y, int w, int h,
                                String displayConfigJson, String dataSourceJson) {
         var errors = validate(title, type, w, h);
+        validateDataSourceSelection(dataSourceJson, errors);
         if (!errors.isEmpty()) {
             throw new WidgetValidationException(errors);
         }
@@ -156,24 +180,17 @@ public class WidgetService {
 
     private String executeFetch(String dataSourceJson) {
         try {
-            var mapper = new ObjectMapper();
-            var ds = mapper.readValue(dataSourceJson, DataSource.class);
-            if ("table".equals(ds.type())) {
-                return executeTableFetch(ds, mapper);
+            JsonNode dataSourceNode = objectMapper.readTree(dataSourceJson);
+            if (isTableDataSource(dataSourceNode)) {
+                return executeTableFetch(objectMapper.treeToValue(dataSourceNode, LegacyDataSource.class));
             }
-            var method = "POST".equalsIgnoreCase(ds.method()) ? HttpMethod.POST : HttpMethod.GET;
-            var request = restClient.method(method)
-                .uri(ds.url())
-                .headers(headers -> {
-                    if (ds.headers() != null) {
-                        ds.headers().forEach(headers::set);
-                    }
-                });
-            if (method == HttpMethod.POST && ds.body() != null && !ds.body().isBlank()) {
-                request = request.body(ds.body());
+            if (isLegacyInlineRestDataSource(dataSourceNode)) {
+                return executeLegacyRestFetch(objectMapper.treeToValue(dataSourceNode, LegacyDataSource.class));
             }
-            var response = request.retrieve().toEntity(String.class);
-            return response.getBody();
+            if (isSelectedRestDataSource(dataSourceNode)) {
+                return executeSelectedRestFetch(objectMapper.treeToValue(dataSourceNode, SelectedRestDataSource.class));
+            }
+            throw new WidgetFetchException(400, "Invalid data source configuration");
         } catch (WidgetFetchException e) {
             throw e;
         } catch (Exception e) {
@@ -181,7 +198,40 @@ public class WidgetService {
         }
     }
 
-    private String executeTableFetch(DataSource ds, ObjectMapper mapper) throws Exception {
+    private String executeLegacyRestFetch(LegacyDataSource dataSource) {
+        var method = "POST".equalsIgnoreCase(dataSource.method()) ? HttpMethod.POST : HttpMethod.GET;
+        var request = restClient.method(method)
+            .uri(dataSource.url())
+            .headers(headers -> dataSource.headers().forEach(headers::set));
+        if (method == HttpMethod.POST && dataSource.body() != null && !dataSource.body().isBlank()) {
+            request = request.body(dataSource.body());
+        }
+        var response = request.retrieve().toEntity(String.class);
+        return response.getBody();
+    }
+
+    private String executeSelectedRestFetch(SelectedRestDataSource selection) throws JsonProcessingException {
+        if (selection.dataSourceId() == null) {
+            throw new WidgetFetchException(400, "Selected data source does not exist.");
+        }
+        var source = dataSourceRepository.findById(selection.dataSourceId())
+            .orElseThrow(() -> new WidgetFetchException(400, "Selected data source does not exist."));
+        var config = objectMapper.readValue(source.configJson(), RestSourceConfig.class);
+        var requestConfig = selection.request() == null ? new RestRequest("", "GET", Map.of(), null) : selection.request();
+        var requestHeaders = new LinkedHashMap<>(requestConfig.headers() == null ? Map.<String, String>of() : requestConfig.headers());
+        applyAuthenticationHeader(config.authentication(), requestHeaders);
+        var method = "POST".equalsIgnoreCase(requestConfig.method()) ? HttpMethod.POST : HttpMethod.GET;
+        var request = restClient.method(method)
+            .uri(resolveRequestUrl(config.baseUrl(), requestConfig.path()))
+            .headers(headers -> requestHeaders.forEach(headers::set));
+        if (method == HttpMethod.POST && requestConfig.body() != null && !requestConfig.body().isBlank()) {
+            request = request.body(requestConfig.body());
+        }
+        var response = request.retrieve().toEntity(String.class);
+        return response.getBody();
+    }
+
+    private String executeTableFetch(LegacyDataSource ds) throws Exception {
         if (ds.table() == null || ds.table().isBlank()) {
             throw new WidgetFetchException(400, "Table name is required.");
         }
@@ -211,16 +261,7 @@ public class WidgetService {
             }
             return row;
         });
-        return mapper.writeValueAsString(rows);
-    }
-
-    private DataSource parseDataSource(String dataSourceJson) {
-        try {
-            var mapper = new ObjectMapper();
-            return mapper.readValue(dataSourceJson, DataSource.class);
-        } catch (Exception e) {
-            throw new WidgetFetchException(400, "Invalid data source configuration");
-        }
+        return objectMapper.writeValueAsString(rows);
     }
 
     private void ensureDashboardExists(UUID dashboardId) {
@@ -248,8 +289,157 @@ public class WidgetService {
         return errors;
     }
 
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    private record DataSource(String type, String url, String method, Map<String, String> headers, String body,
-                              String table, List<String> columns, Integer limit) {
+    private void validateDataSourceSelection(String dataSourceJson, Map<String, String> errors) {
+        if (dataSourceJson == null || dataSourceJson.isBlank()) {
+            return;
+        }
+        try {
+            JsonNode dataSourceNode = objectMapper.readTree(dataSourceJson);
+            if (isLegacyInlineRestDataSource(dataSourceNode) || isTableDataSource(dataSourceNode)) {
+                return;
+            }
+            if (!isSelectedRestDataSource(dataSourceNode)) {
+                errors.put("dataSource", "Data source configuration is invalid.");
+                return;
+            }
+            var selection = objectMapper.treeToValue(dataSourceNode, SelectedRestDataSource.class);
+            if (selection.dataSourceId() == null || !dataSourceRepository.existsById(selection.dataSourceId())) {
+                errors.put("dataSource", "Select a data source.");
+            }
+            if (selection.request() == null) {
+                errors.put("dataSource", "Widget request is required.");
+                return;
+            }
+            if (selection.request().path() == null || selection.request().path().isBlank()) {
+                errors.put("dataSource", "Request path is required.");
+            }
+            if (selection.request().method() == null
+                || (!"GET".equalsIgnoreCase(selection.request().method()) && !"POST".equalsIgnoreCase(selection.request().method()))) {
+                errors.put("dataSource", "Request method must be GET or POST.");
+            }
+            validateAuthenticationHeaderCollision(selection.dataSourceId(), selection.request().headers(), errors);
+        } catch (Exception exception) {
+            errors.put("dataSource", "Data source configuration is invalid.");
+        }
+    }
+
+    private void validateAuthenticationHeaderCollision(
+        UUID dataSourceId,
+        Map<String, String> requestHeaders,
+        Map<String, String> errors
+    ) throws JsonProcessingException {
+        if (dataSourceId == null) {
+            return;
+        }
+        var source = dataSourceRepository.findById(dataSourceId).orElse(null);
+        if (source == null) {
+            return;
+        }
+        var config = objectMapper.readValue(source.configJson(), RestSourceConfig.class);
+        var authHeader = config.authentication() == null ? null : config.authentication().headerName();
+        if (authHeader == null || authHeader.isBlank() || requestHeaders == null) {
+            return;
+        }
+        for (var header : requestHeaders.keySet()) {
+            if (header != null && header.equalsIgnoreCase(authHeader)) {
+                errors.put("dataSource", "Request headers must not override the data source authentication header.");
+                return;
+            }
+        }
+    }
+
+    private void applyAuthenticationHeader(Authentication authentication, Map<String, String> requestHeaders) {
+        if (authentication == null || authentication.type() == null) {
+            return;
+        }
+        var existingHeaders = new HashSet<String>();
+        for (var header : requestHeaders.keySet()) {
+            if (header != null) {
+                existingHeaders.add(header.toLowerCase(java.util.Locale.ROOT));
+            }
+        }
+        switch (authentication.type()) {
+            case "none" -> {
+            }
+            case "bearer_token" -> {
+                if (authentication.value() != null && !authentication.value().isBlank()) {
+                    if (existingHeaders.contains("authorization")) {
+                        throw new WidgetFetchException(400, "Widget request header conflicts with data source authentication header.");
+                    }
+                    requestHeaders.put("Authorization", "Bearer " + authentication.value());
+                }
+            }
+            case "api_key_header" -> {
+                if (authentication.headerName() != null && !authentication.headerName().isBlank()) {
+                    if (existingHeaders.contains(authentication.headerName().toLowerCase(java.util.Locale.ROOT))) {
+                        throw new WidgetFetchException(400, "Widget request header conflicts with data source authentication header.");
+                    }
+                    requestHeaders.put(authentication.headerName(), authentication.value());
+                }
+            }
+            default -> throw new WidgetFetchException(400, "Invalid data source authentication configuration");
+        }
+    }
+
+    private String resolveRequestUrl(String baseUrl, String path) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new WidgetFetchException(400, "Selected data source is invalid.");
+        }
+        if (path == null || path.isBlank()) {
+            return baseUrl;
+        }
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            throw new WidgetFetchException(400, "Widget request path must be relative to the selected data source.");
+        }
+        try {
+            return new URI(baseUrl).resolve(path.startsWith("/") ? "." + path : path).toString();
+        } catch (URISyntaxException exception) {
+            throw new WidgetFetchException(400, "Selected data source is invalid.");
+        }
+    }
+
+    private boolean isLegacyInlineRestDataSource(JsonNode dataSourceNode) {
+        return "rest".equals(dataSourceNode.path("type").asText(null))
+            && dataSourceNode.has("url");
+    }
+
+    private boolean isTableDataSource(JsonNode dataSourceNode) {
+        return "table".equals(dataSourceNode.path("type").asText(null));
+    }
+
+    private boolean isSelectedRestDataSource(JsonNode dataSourceNode) {
+        return "rest".equals(dataSourceNode.path("kind").asText(null))
+            && dataSourceNode.has("request");
+    }
+
+    private record LegacyDataSource(
+        String type,
+        String url,
+        String method,
+        Map<String, String> headers,
+        String body,
+        String table,
+        List<String> columns,
+        Integer limit
+    ) {
+        private LegacyDataSource {
+            headers = headers == null ? Collections.emptyMap() : headers;
+            columns = columns == null ? Collections.emptyList() : columns;
+        }
+    }
+
+    private record SelectedRestDataSource(String kind, UUID dataSourceId, RestRequest request) {
+    }
+
+    private record RestRequest(String path, String method, Map<String, String> headers, String body) {
+        private RestRequest {
+            headers = headers == null ? Collections.emptyMap() : headers;
+        }
+    }
+
+    private record RestSourceConfig(String baseUrl, Authentication authentication) {
+    }
+
+    private record Authentication(String type, String headerName, String value) {
     }
 }

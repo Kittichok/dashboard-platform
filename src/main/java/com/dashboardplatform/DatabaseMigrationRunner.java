@@ -17,7 +17,8 @@ import org.springframework.stereotype.Component;
 public class DatabaseMigrationRunner {
     private static final List<String> MIGRATIONS = List.of(
         "db/migration/V1__create_dashboards.sql",
-        "db/migration/V2__add_dashboard_variable_state_json.sql"
+        "db/migration/V2__add_dashboard_variable_state_json.sql",
+        "db/migration/V3__create_data_sources.sql"
     );
 
     private final DataSource dataSource;

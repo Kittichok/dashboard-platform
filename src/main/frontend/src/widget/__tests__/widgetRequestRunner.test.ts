@@ -32,22 +32,28 @@ describe("runWidgetRequests", () => {
     const tableWidget = widget({
       id: "widget-1",
       dataSource: {
-        type: "rest",
-        url: "https://api.example.test/services",
-        method: "GET",
-        headers: {},
-        body: null
+        kind: "rest",
+        dataSourceId: "source-1",
+        request: {
+          path: "/services",
+          method: "GET",
+          headers: {},
+          body: null
+        }
       }
     });
     const metricWidget = widget({
       id: "widget-2",
       type: "metric",
       dataSource: {
-        type: "rest",
-        url: "https://api.example.test/health",
-        method: "GET",
-        headers: {},
-        body: null
+        kind: "rest",
+        dataSourceId: "source-2",
+        request: {
+          path: "/health",
+          method: "GET",
+          headers: {},
+          body: null
+        }
       }
     });
 
@@ -84,11 +90,14 @@ describe("runWidgetRequests", () => {
 
   it("deduplicates identical data sources within one operation and shares the response", async () => {
     const sharedSource = {
-      type: "rest" as const,
-      url: "https://api.example.test/summary",
-      method: "GET" as const,
-      headers: { Accept: "application/json" },
-      body: null
+      kind: "rest" as const,
+      dataSourceId: "source-1",
+      request: {
+        path: "/summary",
+        method: "GET" as const,
+        headers: { Accept: "application/json" },
+        body: null
+      }
     };
     const result = ok({ total: 12 });
     const fetchWidgetData = vi.fn().mockResolvedValueOnce(result);
@@ -112,18 +121,24 @@ describe("runWidgetRequests", () => {
 
   it("treats header insertion order as the same resolved request", async () => {
     const firstSource = {
-      type: "rest" as const,
-      url: "https://api.example.test/summary",
-      method: "GET" as const,
-      headers: { Accept: "application/json", "X-Team": "ops" },
-      body: null
+      kind: "rest" as const,
+      dataSourceId: "source-1",
+      request: {
+        path: "/summary",
+        method: "GET" as const,
+        headers: { Accept: "application/json", "X-Team": "ops" },
+        body: null
+      }
     };
     const secondSource = {
-      type: "rest" as const,
-      url: "https://api.example.test/summary",
-      method: "GET" as const,
-      headers: { "X-Team": "ops", Accept: "application/json" },
-      body: null
+      kind: "rest" as const,
+      dataSourceId: "source-1",
+      request: {
+        path: "/summary",
+        method: "GET" as const,
+        headers: { "X-Team": "ops", Accept: "application/json" },
+        body: null
+      }
     };
     const fetchWidgetData = vi.fn().mockResolvedValueOnce(ok({ total: 12 }));
 
@@ -141,11 +156,14 @@ describe("runWidgetRequests", () => {
 
   it("replaces rest data source variable placeholders before fetching", async () => {
     const source = {
-      type: "rest" as const,
-      url: "https://api.example.test/users/{{userId}}?team={{team}}",
-      method: "POST" as const,
-      headers: { "X-Team": "{{team}}" },
-      body: "{\"owner\":\"{{userId}}\"}"
+      kind: "rest" as const,
+      dataSourceId: "source-1",
+      request: {
+        path: "/users/{{userId}}?team={{team}}",
+        method: "POST" as const,
+        headers: { "X-Team": "{{team}}" },
+        body: "{\"owner\":\"{{userId}}\"}"
+      }
     };
     const fetchWidgetData = vi.fn().mockResolvedValueOnce(ok({ total: 12 }));
 
@@ -157,11 +175,14 @@ describe("runWidgetRequests", () => {
     });
 
     expect(fetchWidgetData).toHaveBeenCalledWith("dashboard-1", "widget-1", {
-      type: "rest",
-      url: "https://api.example.test/users/42?team=ops",
-      method: "POST",
-      headers: { "X-Team": "ops" },
-      body: "{\"owner\":\"42\"}"
+      kind: "rest",
+      dataSourceId: "source-1",
+      request: {
+        path: "/users/42?team=ops",
+        method: "POST",
+        headers: { "X-Team": "ops" },
+        body: "{\"owner\":\"42\"}"
+      }
     });
   });
 
@@ -169,11 +190,14 @@ describe("runWidgetRequests", () => {
     const variables = extractDataSourceVariables([
       widget({
         dataSource: {
-          type: "rest",
-          url: "https://api.example.test/events?region={{region}}&from={{from:datetime}}",
-          method: "GET",
-          headers: { "X-User": "{{user:string}}" },
-          body: null,
+          kind: "rest",
+          dataSourceId: "source-1",
+          request: {
+            path: "/events?region={{region}}&from={{from:datetime}}",
+            method: "GET",
+            headers: { "X-User": "{{user:string}}" },
+            body: null,
+          }
         },
       }),
     ]);
@@ -187,11 +211,14 @@ describe("runWidgetRequests", () => {
 
   it("resolves mixed typed and untyped tokens without type suffixes in output", async () => {
     const source = {
-      type: "rest" as const,
-      url: "https://api.example.test/events?region={{region}}&from={{from:datetime}}",
-      method: "POST" as const,
-      headers: { "X-From": "{{from:datetime}}" },
-      body: "{\"from\":\"{{from:datetime}}\",\"region\":\"{{region}}\"}",
+      kind: "rest" as const,
+      dataSourceId: "source-1",
+      request: {
+        path: "/events?region={{region}}&from={{from:datetime}}",
+        method: "POST" as const,
+        headers: { "X-From": "{{from:datetime}}" },
+        body: "{\"from\":\"{{from:datetime}}\",\"region\":\"{{region}}\"}",
+      }
     };
     const fetchWidgetData = vi.fn().mockResolvedValueOnce(ok({ total: 8 }));
 
@@ -203,11 +230,14 @@ describe("runWidgetRequests", () => {
     });
 
     expect(fetchWidgetData).toHaveBeenCalledWith("dashboard-1", "widget-1", {
-      type: "rest",
-      url: "https://api.example.test/events?region=ap-southeast-1&from=2026-06-19T09:30",
-      method: "POST",
-      headers: { "X-From": "2026-06-19T09:30" },
-      body: "{\"from\":\"2026-06-19T09:30\",\"region\":\"ap-southeast-1\"}",
+      kind: "rest",
+      dataSourceId: "source-1",
+      request: {
+        path: "/events?region=ap-southeast-1&from=2026-06-19T09:30",
+        method: "POST",
+        headers: { "X-From": "2026-06-19T09:30" },
+        body: "{\"from\":\"2026-06-19T09:30\",\"region\":\"ap-southeast-1\"}",
+      }
     });
   });
 });

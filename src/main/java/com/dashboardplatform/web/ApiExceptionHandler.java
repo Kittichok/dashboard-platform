@@ -3,9 +3,14 @@ package com.dashboardplatform.web;
 import com.dashboardplatform.dashboard.DashboardNotFoundException;
 import com.dashboardplatform.dashboard.DashboardValidationException;
 import com.dashboardplatform.dashboard.DashboardVersionConflictException;
+import com.dashboardplatform.datasource.DataSourceExceptions.DataSourceInUseException;
+import com.dashboardplatform.datasource.DataSourceExceptions.DataSourceNotFoundException;
+import com.dashboardplatform.datasource.DataSourceExceptions.DataSourceValidationException;
+import com.dashboardplatform.datasource.DataSourceExceptions.DataSourceVersionConflictException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetFetchException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetNotFoundException;
 import com.dashboardplatform.widget.WidgetExceptions.WidgetValidationException;
+import java.util.stream.Collectors;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -62,10 +67,23 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(ApiError.validation(exception.fieldErrors()));
     }
 
+    @ExceptionHandler(DataSourceValidationException.class)
+    public ResponseEntity<ApiError> handleDataSourceValidation(
+        DataSourceValidationException exception
+    ) {
+        return ResponseEntity.badRequest().body(ApiError.validation(exception.fieldErrors()));
+    }
+
     @ExceptionHandler(WidgetNotFoundException.class)
     public ResponseEntity<ApiError> handleWidgetNotFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(ApiError.of("widget_not_found", "The requested widget does not exist."));
+    }
+
+    @ExceptionHandler(DataSourceNotFoundException.class)
+    public ResponseEntity<ApiError> handleDataSourceNotFound() {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiError.of("data_source_not_found", "The requested data source does not exist."));
     }
 
     @ExceptionHandler(WidgetFetchException.class)
@@ -74,6 +92,25 @@ public class ApiExceptionHandler {
             "fetchError", true,
             "status", exception.httpStatus(),
             "body", exception.body()));
+    }
+
+    @ExceptionHandler(DataSourceVersionConflictException.class)
+    public ResponseEntity<ApiError> handleDataSourceConflict() {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ApiError.of(
+                "data_source_version_conflict",
+                "The data source changed after it was loaded."));
+    }
+
+    @ExceptionHandler(DataSourceInUseException.class)
+    public ResponseEntity<ApiError> handleDataSourceInUse(DataSourceInUseException exception) {
+        var joinedReferences = exception.references().stream()
+            .map(reference -> reference.dashboardName() + " / " + reference.widgetTitle())
+            .collect(Collectors.joining(", "));
+        return ResponseEntity.badRequest().body(new ApiError(
+            "data_source_in_use",
+            "The data source is still referenced by widgets.",
+            Map.of("references", joinedReferences)));
     }
 
     @ExceptionHandler(RuntimeException.class)
