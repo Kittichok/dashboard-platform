@@ -17,7 +17,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -67,7 +69,8 @@ public class DataSourceService {
     }
 
     public DataSource createDataSource(String name, String type, Map<String, Object> config) {
-        var errors = validate(name, type, config);
+        var normalizedConfig = normalizedConfig(config);
+        var errors = validate(name, type, normalizedConfig);
         if (!errors.isEmpty()) {
             throw new DataSourceValidationException(errors);
         }
@@ -76,7 +79,7 @@ public class DataSourceService {
             uuidSupplier.get(),
             name.trim(),
             type.trim(),
-            writeConfig(config),
+            writeConfig(normalizedConfig),
             1L,
             now,
             now);
@@ -85,7 +88,8 @@ public class DataSourceService {
     }
 
     public DataSource updateDataSource(UUID id, long version, String name, String type, Map<String, Object> config) {
-        var errors = validate(name, type, config);
+        var normalizedConfig = normalizedConfig(config);
+        var errors = validate(name, type, normalizedConfig);
         if (!errors.isEmpty()) {
             throw new DataSourceValidationException(errors);
         }
@@ -95,7 +99,7 @@ public class DataSourceService {
             existing.id(),
             name.trim(),
             type.trim(),
-            writeConfig(config),
+            writeConfig(normalizedConfig),
             existing.version() + 1,
             existing.createdAt(),
             Instant.now(clock));
@@ -187,23 +191,61 @@ public class DataSourceService {
             errors.put("config.authentication.type", "Authentication type is required.");
             return;
         }
+        String reservedHeaderName = null;
         switch (authType) {
             case "none" -> {
             }
             case "bearer_token" -> {
+                reservedHeaderName = "Authorization";
                 if (isBlank(stringValue(authentication.get("value")))) {
                     errors.put("config.authentication.value", "Bearer token is required.");
                 }
             }
             case "api_key_header" -> {
-                if (isBlank(stringValue(authentication.get("headerName")))) {
+                var headerName = stringValue(authentication.get("headerName"));
+                if (isBlank(headerName)) {
                     errors.put("config.authentication.headerName", "Header name is required.");
+                } else {
+                    reservedHeaderName = headerName;
                 }
                 if (isBlank(stringValue(authentication.get("value")))) {
                     errors.put("config.authentication.value", "API key value is required.");
                 }
             }
             default -> errors.put("config.authentication.type", "Authentication type is invalid.");
+        }
+        validateHeaders(config.get("headers"), reservedHeaderName, errors);
+    }
+
+    private void validateHeaders(Object headersNode, String reservedHeaderName, Map<String, String> errors) {
+        if (headersNode == null) {
+            return;
+        }
+        if (!(headersNode instanceof Map<?, ?> rawHeaders)) {
+            errors.put("config.headers", "Headers must be an object.");
+            return;
+        }
+        var seenNames = new LinkedHashSet<String>();
+        for (var entry : rawHeaders.entrySet()) {
+            var name = stringValue(entry.getKey());
+            var value = stringValue(entry.getValue());
+            if (isBlank(name)) {
+                errors.put("config.headers", "Header names are required.");
+                return;
+            }
+            if (isBlank(value)) {
+                errors.put("config.headers", "Header values are required.");
+                return;
+            }
+            var normalizedName = name.toLowerCase(Locale.ROOT);
+            if (!seenNames.add(normalizedName)) {
+                errors.put("config.headers", "Header names must be unique.");
+                return;
+            }
+            if (reservedHeaderName != null && normalizedName.equals(reservedHeaderName.toLowerCase(Locale.ROOT))) {
+                errors.put("config.headers", "Default headers cannot override the authentication header.");
+                return;
+            }
         }
     }
 
@@ -241,6 +283,15 @@ public class DataSourceService {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Stored data source config_json is invalid JSON.", exception);
         }
+    }
+
+    private Map<String, Object> normalizedConfig(Map<String, Object> config) {
+        if (config == null) {
+            return null;
+        }
+        var normalized = new LinkedHashMap<String, Object>(config);
+        normalized.putIfAbsent("headers", Map.of());
+        return normalized;
     }
 
     private boolean isValidHttpUrl(String baseUrl) {

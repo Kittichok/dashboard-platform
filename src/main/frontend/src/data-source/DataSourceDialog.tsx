@@ -11,6 +11,7 @@ type DataSourceDialogProps = {
 };
 
 type AuthType = "none" | "bearer_token" | "api_key_header";
+type HeaderRow = { id: number; name: string; value: string };
 
 export function DataSourceDialog({
   dataSource,
@@ -30,6 +31,13 @@ export function DataSourceDialog({
   const [authValue, setAuthValue] = useState(
     dataSource?.config.authentication.type === "none" ? "" : dataSource?.config.authentication.value ?? ""
   );
+  const [headerRows, setHeaderRows] = useState<HeaderRow[]>(() => {
+    const headers = Object.entries(dataSource?.config.headers ?? {});
+    if (headers.length > 0) {
+      return headers.map(([name, value], index) => ({ id: index + 1, name, value }));
+    }
+    return [{ id: 1, name: "Content-Type", value: "application/json" }];
+  });
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -44,10 +52,23 @@ export function DataSourceDialog({
       type: "rest",
       config: {
         baseUrl,
-        authentication
+        authentication,
+        headers: buildHeaders(headerRows)
       },
       version: dataSource?.version
     });
+  }
+
+  function addHeaderRow() {
+    setHeaderRows((current) => [...current, { id: nextHeaderId(current), name: "", value: "" }]);
+  }
+
+  function updateHeaderRow(id: number, field: "name" | "value", nextValue: string) {
+    setHeaderRows((current) => current.map((row) => row.id === id ? { ...row, [field]: nextValue } : row));
+  }
+
+  function removeHeaderRow(id: number) {
+    setHeaderRows((current) => current.length === 1 ? current : current.filter((row) => row.id !== id));
   }
 
   return (
@@ -124,6 +145,42 @@ export function DataSourceDialog({
               ) : null}
             </label>
           ) : null}
+          <fieldset className="dialog-field" style={{ gap: "10px" }}>
+            <legend style={{ fontWeight: 600, marginBottom: "8px" }}>Default Headers</legend>
+            {headerRows.map((row, index) => (
+              <div
+                key={row.id}
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", alignItems: "center" }}
+              >
+                <input
+                  aria-label={`Header name ${index + 1}`}
+                  value={row.name}
+                  onChange={(event) => updateHeaderRow(row.id, "name", event.target.value)}
+                  placeholder="Content-Type"
+                />
+                <input
+                  aria-label={`Header value ${index + 1}`}
+                  value={row.value}
+                  onChange={(event) => updateHeaderRow(row.id, "value", event.target.value)}
+                  placeholder="application/json"
+                />
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => removeHeaderRow(row.id)}
+                  disabled={headerRows.length === 1}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <div>
+              <button type="button" className="button secondary" onClick={addHeaderRow}>
+                Add Header
+              </button>
+            </div>
+            {fieldErrors["config.headers"] ? <small className="field-error">{fieldErrors["config.headers"]}</small> : null}
+          </fieldset>
           {operationMessage ? <p className="form-message">{operationMessage}</p> : null}
           <div className="dialog-actions">
             <button type="button" className="button secondary" onClick={onClose}>Cancel</button>
@@ -135,4 +192,16 @@ export function DataSourceDialog({
       </section>
     </div>
   );
+}
+
+function buildHeaders(rows: HeaderRow[]) {
+  return Object.fromEntries(
+    rows
+      .filter((row) => row.name.trim() !== "" || row.value.trim() !== "")
+      .map((row) => [row.name.trim(), row.value.trim()])
+  );
+}
+
+function nextHeaderId(rows: HeaderRow[]) {
+  return rows.reduce((max, row) => Math.max(max, row.id), 0) + 1;
 }

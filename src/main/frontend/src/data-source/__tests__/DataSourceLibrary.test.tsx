@@ -16,6 +16,10 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
   });
 }
 
+function renderLibrary() {
+  render(<NavCollapseProvider><MemoryRouter><DataSourceLibrary /></MemoryRouter></NavCollapseProvider>);
+}
+
 describe("DataSourceLibrary", () => {
   const fetchMock = vi.fn();
   const createObjectURL = vi.fn(() => "blob:export");
@@ -41,18 +45,102 @@ describe("DataSourceLibrary", () => {
         type: "rest",
         config: {
           baseUrl: "https://api.example.test/orders",
-          authentication: { type: "none" }
+          authentication: { type: "none" },
+          headers: { "Content-Type": "application/json" }
         },
         version: 1
       }
     ]));
 
-    render(<NavCollapseProvider><MemoryRouter><DataSourceLibrary /></MemoryRouter></NavCollapseProvider>);
+    renderLibrary();
 
     expect(await screen.findByRole("heading", { name: "Orders API" })).toBeInTheDocument();
     const searchBox = screen.getByRole("searchbox", { name: /search data sources/i });
     await user.type(searchBox, "billing");
     expect(screen.getByText(/no data sources found/i)).toBeInTheDocument();
+  });
+
+  it("renders header summaries and tolerates imported configs without headers", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      {
+        id: "source-1",
+        name: "Orders API",
+        type: "rest",
+        config: {
+          baseUrl: "https://api.example.test/orders",
+          authentication: { type: "none" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-Tenant": "ops"
+          }
+        },
+        version: 1
+      }
+    ]));
+
+    renderLibrary();
+
+    expect(await screen.findByText(/Content-Type: application\/json/i)).toBeInTheDocument();
+    expect(screen.getByText(/Accept: application\/json/i)).toBeInTheDocument();
+    expect(screen.getByText(/\+1 more/i)).toBeInTheDocument();
+  });
+
+  it("seeds Content-Type for new data sources and lets the user edit header rows", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse({
+        id: "source-1",
+        name: "Orders API",
+        type: "rest",
+        config: {
+          baseUrl: "https://api.example.test/orders",
+          authentication: { type: "none" },
+          headers: {
+            "Content-Type": "application/ld+json",
+            Accept: "application/json"
+          }
+        },
+        version: 1
+      }, { status: 201 }));
+
+    renderLibrary();
+
+    await screen.findByText(/no data sources yet/i);
+    await user.click(screen.getByRole("button", { name: /new data source/i }));
+    const dialog = screen.getByRole("dialog", { name: /create data source/i });
+    expect(within(dialog).getByDisplayValue("Content-Type")).toBeInTheDocument();
+    expect(within(dialog).getByDisplayValue("application/json")).toBeInTheDocument();
+    await user.type(within(dialog).getByRole("textbox", { name: /^name$/i }), "Orders API");
+    await user.type(within(dialog).getByRole("textbox", { name: /^base url$/i }), "https://api.example.test/orders");
+    await user.clear(within(dialog).getByLabelText("Header value 1"));
+    await user.type(within(dialog).getByLabelText("Header value 1"), "application/ld+json");
+    await user.click(within(dialog).getByRole("button", { name: /add header/i }));
+    await user.type(within(dialog).getByLabelText("Header name 2"), "Accept");
+    await user.type(within(dialog).getByLabelText("Header value 2"), "application/json");
+    await user.click(within(dialog).getByRole("button", { name: /create data source/i }));
+
+    expect(await screen.findByRole("heading", { name: "Orders API" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/data-sources",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          name: "Orders API",
+          type: "rest",
+          config: {
+            baseUrl: "https://api.example.test/orders",
+            authentication: { type: "none" },
+            headers: {
+              "Content-Type": "application/ld+json",
+              Accept: "application/json"
+            }
+          }
+        })
+      })
+    );
   });
 
   it("creates, imports, exports, and blocks delete with backend references", async () => {
@@ -65,7 +153,8 @@ describe("DataSourceLibrary", () => {
         type: "rest",
         config: {
           baseUrl: "https://api.example.test/orders",
-          authentication: { type: "none" }
+          authentication: { type: "none" },
+          headers: { "Content-Type": "application/json" }
         },
         version: 1
       }, { status: 201 }))
@@ -75,7 +164,8 @@ describe("DataSourceLibrary", () => {
         type: "rest",
         config: {
           baseUrl: "https://api.example.test/billing",
-          authentication: { type: "none" }
+          authentication: { type: "none" },
+          headers: { "Content-Type": "application/json" }
         },
         version: 1
       }, { status: 201 }))
@@ -84,7 +174,8 @@ describe("DataSourceLibrary", () => {
         type: "rest",
         config: {
           baseUrl: "https://api.example.test/orders",
-          authentication: { type: "none" }
+          authentication: { type: "none" },
+          headers: { "Content-Type": "application/json" }
         }
       }))
       .mockResolvedValueOnce(jsonResponse({
@@ -95,13 +186,13 @@ describe("DataSourceLibrary", () => {
         }
       }, { status: 400 }));
 
-    render(<NavCollapseProvider><MemoryRouter><DataSourceLibrary /></MemoryRouter></NavCollapseProvider>);
+    renderLibrary();
 
     await screen.findByText(/no data sources yet/i);
     await user.click(screen.getByRole("button", { name: /new data source/i }));
     const dialog = screen.getByRole("dialog", { name: /create data source/i });
-    await user.type(within(dialog).getByRole("textbox", { name: /name/i }), "Orders API");
-    await user.type(within(dialog).getByRole("textbox", { name: /base url/i }), "https://api.example.test/orders");
+    await user.type(within(dialog).getByRole("textbox", { name: /^name$/i }), "Orders API");
+    await user.type(within(dialog).getByRole("textbox", { name: /^base url$/i }), "https://api.example.test/orders");
     await user.click(within(dialog).getByRole("button", { name: /create data source/i }));
 
     expect(await screen.findByRole("heading", { name: "Orders API" })).toBeInTheDocument();
@@ -117,6 +208,21 @@ describe("DataSourceLibrary", () => {
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(fileInput, file);
     expect(await screen.findByRole("heading", { name: "Billing API" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/data-sources/import",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          name: "Billing API",
+          type: "rest",
+          config: {
+            baseUrl: "https://api.example.test/billing",
+            authentication: { type: "none" }
+          }
+        })
+      })
+    );
 
     const ordersCard = screen.getByRole("heading", { name: "Orders API" }).closest("article");
     expect(ordersCard).not.toBeNull();
