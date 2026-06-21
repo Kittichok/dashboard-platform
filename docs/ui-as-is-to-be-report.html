@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UI As-Is / To-Be Report</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --paper: #fffdf8;
+      --ink: #1f2933;
+      --muted: #52606d;
+      --line: #d9d1c3;
+      --accent: #0f766e;
+      --accent-soft: #dff6f3;
+      --warn: #8d3b12;
+      --warn-soft: #fce8de;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, #efe7d7 0, transparent 35%),
+        linear-gradient(180deg, #f6f2e9 0%, #efe6d6 100%);
+      line-height: 1.5;
+    }
+
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(31, 41, 51, 0.08);
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 12px;
+      line-height: 1.1;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.25rem);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    .summary {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--warn-soft);
+      color: var(--warn);
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .tag.as-is {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .tag.to-be {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--paper);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.95em;
+      background: #f4efe5;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .footer {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Dashboard Platform</p>
+      <h1>UI As-Is / To-Be Report</h1>
+      <p>This report compares the current widget field-selection UI against the proposed nested JSON field-selection enhancement.</p>
+      <p class="summary">Current status: no UI code changed yet in this session.</p>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <span class="tag as-is">As-Is</span>
+        <h2>Current UI</h2>
+        <ul>
+          <li>The field selector already exists for <code>table</code> and <code>json_preview</code> widgets after <code>Test Fetch</code>.</li>
+          <li>It shows only top-level fields from the JSON response, such as <code>name</code>, <code>language</code>, and <code>detail</code>.</li>
+          <li>Nested values like <code>detail.obj.key</code> or <code>detail.name</code> cannot be selected directly.</li>
+          <li>Table rendering reads flat keys only, so nested values are not shown as separate columns.</li>
+          <li>JSON Preview can filter only by top-level selected fields.</li>
+        </ul>
+      </article>
+
+      <article class="panel">
+        <span class="tag to-be">To-Be</span>
+        <h2>Proposed UI</h2>
+        <ul>
+          <li>The same field selector UI remains in place; no major layout redesign is proposed.</li>
+          <li>After <code>Test Fetch</code>, the selector will list dotted nested paths like <code>detail.obj.key</code> and <code>detail.name</code>.</li>
+          <li>Visitors can choose deep object properties without changing backend persistence.</li>
+          <li>Table widget headers will show the selected dotted paths and render their resolved values.</li>
+          <li>JSON Preview will rebuild a reduced nested object containing only the selected branches.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="panel" style="margin-bottom: 24px;">
+      <h2>Example Response</h2>
+      <p>For this response:</p>
+      <p><code>{ "name": "Adeel Solangi", "language": "Sindhi", "detail": { "obj": { "key": "value" }, "name": "test" } }</code></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>As-Is</th>
+              <th>To-Be</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Selectable fields</td>
+              <td><code>name</code>, <code>language</code>, <code>detail</code></td>
+              <td><code>name</code>, <code>language</code>, <code>detail</code>, <code>detail.obj</code>, <code>detail.obj.key</code>, <code>detail.name</code></td>
+            </tr>
+            <tr>
+              <td>Table widget</td>
+              <td>Cannot show <code>value</code> and <code>test</code> as independent selected nested columns.</td>
+              <td>Can show columns <code>detail.obj.key</code> = <code>value</code> and <code>detail.name</code> = <code>test</code>.</td>
+            </tr>
+            <tr>
+              <td>JSON Preview widget</td>
+              <td>Can keep only top-level <code>detail</code>, but not trim it to specific child fields.</td>
+              <td>Can render only the selected nested branch, for example <code>{ "detail": { "obj": { "key": "value" }, "name": "test" } }</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Evidence</h2>
+      <ul>
+        <li>The only new file added in this session is the implementation plan: <code>docs/superpowers/plans/2026-06-19-widget-nested-response-field-selection.md</code>.</li>
+        <li>No frontend source file under <code>src/main/frontend/src/widget/</code> was edited yet.</li>
+        <li>An optional tiny visual tweak is proposed only if long dotted-path labels wrap poorly.</li>
+      </ul>
+      <p class="footer">Report file: <code>docs/ui-as-is-to-be-report.html</code></p>
+    </section>
+  </main>
+</body>
+</html>
