@@ -497,6 +497,14 @@ h1 {
   box-shadow: 0 24px 80px rgba(7, 15, 31, .3);
 }
 
+.dialog--wide {
+  width: min(80vw, 960px);
+  max-width: 100%;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 24px;
+}
+
 .dialog-close {
   position: absolute;
   top: 15px;

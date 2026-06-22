@@ -8,7 +8,7 @@ import {
   withSelectedFields
 } from "./displayConfig";
 import { WidgetFieldSelector } from "./WidgetFieldSelector";
-import type { DataSource, Widget } from "./types";
+import type { DataSource, ResponseBinding, Widget } from "./types";
 import { fetchWidgetData, listColumns, listTables } from "./widgetApi";
 import { WidgetFetchResult } from "./WidgetFetchResult";
 
@@ -33,6 +33,23 @@ function isSuccessfulFetchResult(
 
 function isTableDataSource(dataSource: DataSource | null): dataSource is Extract<DataSource, { type: "table" }> {
   return Boolean(dataSource && "type" in dataSource && dataSource.type === "table");
+}
+
+function isRestDataSource(dataSource: DataSource | null): dataSource is Extract<DataSource, { kind: "rest" }> | Extract<DataSource, { type: "rest" }> {
+  return Boolean(
+    dataSource
+      && (("kind" in dataSource && dataSource.kind === "rest") || ("type" in dataSource && dataSource.type === "rest"))
+  );
+}
+
+type BindingRow = ResponseBinding & { id: string };
+
+function createBindingRow(binding?: ResponseBinding): BindingRow {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    variable: binding?.variable ?? "",
+    jsonPath: binding?.jsonPath ?? ""
+  };
 }
 
 export function WidgetDataSourceForm({
@@ -68,6 +85,11 @@ export function WidgetDataSourceForm({
     widget.dataSource && "kind" in widget.dataSource && widget.dataSource.kind === "rest"
       ? widget.dataSource.request.body ?? ""
       : ""
+  );
+  const [responseBindings, setResponseBindings] = useState<BindingRow[]>(
+    isRestDataSource(widget.dataSource)
+      ? (widget.dataSource.responseBindings ?? []).map((binding) => createBindingRow(binding))
+      : []
   );
   const [headerKey, setHeaderKey] = useState("");
   const [headerValue, setHeaderValue] = useState("");
@@ -108,7 +130,7 @@ export function WidgetDataSourceForm({
 
   useEffect(() => {
     if (sourceType === "rest") {
-      onChange?.({
+      const nextDataSource: DataSource = {
         kind: "rest",
         dataSourceId: selectedSourceId,
         request: {
@@ -117,7 +139,11 @@ export function WidgetDataSourceForm({
           headers,
           body: body || null
         }
-      });
+      };
+      if (responseBindings.length > 0) {
+        nextDataSource.responseBindings = responseBindings.map(({ variable, jsonPath }) => ({ variable, jsonPath }));
+      }
+      onChange?.(nextDataSource);
     } else {
       onChange?.({
         type: "table",
@@ -126,7 +152,7 @@ export function WidgetDataSourceForm({
         limit: rowLimit,
       });
     }
-  }, [sourceType, selectedSourceId, path, method, headers, body, tableName, selectedColumns, rowLimit, onChange]);
+  }, [sourceType, selectedSourceId, path, method, headers, body, responseBindings, tableName, selectedColumns, rowLimit, onChange]);
 
   function addHeader() {
     if (!headerKey.trim()) return;
@@ -141,6 +167,20 @@ export function WidgetDataSourceForm({
       delete next[key];
       return next;
     });
+  }
+
+  function addBinding() {
+    setResponseBindings((prev) => [...prev, createBindingRow()]);
+  }
+
+  function updateBinding(index: number, key: keyof ResponseBinding, value: string) {
+    setResponseBindings((prev) => prev.map((binding, bindingIndex) => (
+      bindingIndex === index ? { ...binding, [key]: value } : binding
+    )));
+  }
+
+  function removeBinding(index: number) {
+    setResponseBindings((prev) => prev.filter((_, bindingIndex) => bindingIndex !== index));
   }
 
   function toggleColumn(col: string) {
@@ -170,7 +210,7 @@ export function WidgetDataSourceForm({
 
   function currentDataSource(): DataSource {
     if (sourceType === "rest") {
-      return {
+      const nextDataSource: DataSource = {
         kind: "rest",
         dataSourceId: selectedSourceId,
         request: {
@@ -180,6 +220,10 @@ export function WidgetDataSourceForm({
           body: body || null
         }
       };
+      if (responseBindings.length > 0) {
+        nextDataSource.responseBindings = responseBindings.map(({ variable, jsonPath }) => ({ variable, jsonPath }));
+      }
+      return nextDataSource;
     }
     return { type: "table", table: tableName, columns: selectedColumns, limit: rowLimit };
   }
@@ -290,6 +334,76 @@ export function WidgetDataSourceForm({
               />
             </label>
           ) : null}
+
+          <section style={{ marginTop: "16px", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--surface-warm)" }}>
+            <div style={{ marginBottom: "10px" }}>
+              <strong style={{ display: "block", marginBottom: "4px", color: "var(--text)" }}>Response Bindings</strong>
+              <div style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.45 }}>
+                Capture values from a successful response and make them available as runtime variables for later widgets.
+              </div>
+            </div>
+
+            {responseBindings.length > 0 ? (
+              <div style={{ display: "grid", gap: "10px" }}>
+                {responseBindings.map((binding, index) => (
+                  <div
+                    key={binding.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1.4fr auto",
+                      gap: "10px",
+                      alignItems: "start",
+                      padding: "10px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--line)",
+                      background: "rgba(255,255,255,0.7)"
+                    }}
+                  >
+                    <label className="dialog-field" style={{ marginBottom: 0 }}>
+                      <span>Variable</span>
+                      <input
+                        value={binding.variable}
+                        onChange={(e) => updateBinding(index, "variable", e.target.value)}
+                        placeholder="auth_token"
+                      />
+                      <small className="field-error" style={{ color: "var(--muted)" }}>
+                        Use <code style={{ fontFamily: "monospace" }}>[A-Za-z0-9_.-]+</code>
+                      </small>
+                    </label>
+                    <label className="dialog-field" style={{ marginBottom: 0 }}>
+                      <span>JSON Path</span>
+                      <input
+                        value={binding.jsonPath}
+                        onChange={(e) => updateBinding(index, "jsonPath", e.target.value)}
+                        placeholder="access_token"
+                      />
+                      <small className="field-error" style={{ color: "var(--muted)" }}>
+                        Simple dot path, optionally with array indices.
+                      </small>
+                    </label>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label="Remove binding"
+                      onClick={() => removeBinding(index)}
+                      style={{ marginTop: "28px" }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "10px", flexWrap: "wrap" }}>
+              <button type="button" className="button secondary" onClick={addBinding} style={{ fontSize: "12px", padding: "4px 10px" }}>
+                Add binding
+              </button>
+              <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                Applies only after a successful widget fetch.
+              </span>
+            </div>
+          </section>
         </>
       ) : (
         <>

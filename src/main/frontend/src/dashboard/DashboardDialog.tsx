@@ -6,12 +6,18 @@ type DashboardDialogProps = {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  className?: string;
 };
 
-export function DashboardDialog({ title, children, onClose }: DashboardDialogProps) {
+export function DashboardDialog({ title, children, onClose, className }: DashboardDialogProps) {
   return (
     <div className="dialog-backdrop">
-      <section className="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <section
+        className={`dialog${className ? ` ${className}` : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialog-title"
+      >
         <button className="icon-button dialog-close" type="button" aria-label="Close" onClick={onClose}>
           <Icon name="close" />
         </button>

@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 import { DashboardDialog } from "../dashboard/DashboardDialog";
-import type { Widget, WidgetInput, WidgetType } from "./types";
+import type { DataSource, Widget, WidgetInput, WidgetType } from "./types";
+import { WidgetDataSourceForm } from "./WidgetDataSourceForm";
 
 type WidgetAddDialogProps = {
   fieldErrors: Record<string, string>;
@@ -46,14 +47,37 @@ export function WidgetAddDialog({
   const [type, setType] = useState<WidgetType>("table");
   const [w, setW] = useState(3);
   const [h, setH] = useState(2);
+  const [displayConfig, setDisplayConfig] = useState<Record<string, unknown> | null>(null);
+  const [dataSource, setDataSource] = useState<DataSource | undefined>(undefined);
+
+  const draftWidget: Widget = {
+    id: "",
+    title,
+    type,
+    x: defaultPos.x,
+    y: defaultPos.y,
+    w,
+    h,
+    displayConfig,
+    dataSource: dataSource ?? null
+  };
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    await onSubmit({ title, type, x: defaultPos.x, y: defaultPos.y, w, h });
+    await onSubmit({
+      title,
+      type,
+      x: defaultPos.x,
+      y: defaultPos.y,
+      w,
+      h,
+      displayConfig,
+      dataSource: dataSource ?? null
+    });
   }
 
   return (
-    <DashboardDialog title="Add Widget" onClose={onClose}>
+    <DashboardDialog title="Add Widget" onClose={onClose} className="dialog--wide">
       <form onSubmit={submit} noValidate>
         <label className="dialog-field">
           <span>Title</span>
@@ -69,10 +93,12 @@ export function WidgetAddDialog({
           <span>Type</span>
           <select value={type} onChange={(e) => setType(e.target.value as WidgetType)}
             style={{ width: "100%", padding: "8px", borderRadius: "7px", border: "1px solid var(--line)", background: "var(--surface-warm)" }}>
-            <option value="table">Table</option>
-            <option value="chart">Chart</option>
-            <option value="metric">Metric</option>
-            <option value="text">Text</option>
+          <option value="table">Table</option>
+          <option value="chart">Chart</option>
+          <option value="metric">Metric</option>
+          <option value="text">Text</option>
+          <option value="raw_json">Raw JSON</option>
+          <option value="json_preview">JSON Preview</option>
           </select>
         </label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
@@ -85,6 +111,13 @@ export function WidgetAddDialog({
             <input type="number" min={1} value={h} onChange={(e) => setH(Number(e.target.value))} />
           </label>
         </div>
+        <WidgetDataSourceForm
+          dashboardId=""
+          widget={draftWidget}
+          displayConfig={displayConfig}
+          onChange={setDataSource}
+          onDisplayConfigChange={setDisplayConfig}
+        />
         {operationMessage ? <p className="form-message">{operationMessage}</p> : null}
         <div className="dialog-actions">
           <button type="button" className="button secondary" onClick={onClose}>Cancel</button>

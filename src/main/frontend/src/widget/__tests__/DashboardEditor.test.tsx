@@ -201,6 +201,141 @@ describe("DashboardEditor", () => {
     expect(screen.getByText(/Example path:/)).toBeInTheDocument();
   });
 
+  it("saves response bindings from the widget edit panel", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([latencyWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-1", name: "Latency API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
+    fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      ...latencyWidget,
+      dataSource: {
+        ...latencyWidget.dataSource,
+        responseBindings: [{ variable: "auth_token", jsonPath: "access_token" }]
+      }
+    }));
+
+    renderEditor();
+
+    const card = (await screen.findByRole("heading", { name: "Latency" })).closest("article");
+    expect(card).not.toBeNull();
+    await user.click(card!);
+
+    const panel = screen.getByRole("dialog", { name: /edit widget/i });
+    await user.click(within(panel).getByRole("button", { name: /add binding/i }));
+    await user.type(within(panel).getByRole("textbox", { name: /variable/i }), "auth_token");
+    await user.type(within(panel).getByRole("textbox", { name: /json path/i }), "access_token");
+    await user.click(within(panel).getByRole("button", { name: /save/i }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "/api/dashboards/dashboard-1/widgets/widget-1?dashboardVersion=4",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          title: "Latency",
+          type: "metric",
+          x: 0,
+          y: 0,
+          w: 3,
+          h: 2,
+          displayConfigJson: JSON.stringify({ value: "98.4" }),
+          dataSourceJson: JSON.stringify({
+            ...latencyWidget.dataSource,
+            responseBindings: [{ variable: "auth_token", jsonPath: "access_token" }]
+          })
+        })
+      })
+    );
+  });
+
+  it("creates a widget with the full add dialog data source editor", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([]));
+    fetchMock.mockResolvedValueOnce(jsonResponse([
+      { id: "source-1", name: "Latency API", type: "rest", config: { baseUrl: "https://api.example.test", authentication: { type: "none" } }, version: 1 }
+    ])); // listDataSources
+    fetchMock.mockResolvedValueOnce(jsonResponse([])); // listTables
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      id: "widget-9",
+      title: "Orders",
+      type: "raw_json",
+      x: 0,
+      y: 0,
+      w: 4,
+      h: 3,
+      displayConfig: null,
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-1",
+        request: {
+          path: "/orders",
+          method: "GET",
+          headers: {},
+          body: null
+        },
+        responseBindings: [{ variable: "auth_token", jsonPath: "access_token" }]
+      }
+    }));
+
+    renderEditor();
+
+    await user.click(await screen.findByRole("button", { name: /add widget/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /add widget/i });
+    expect(dialog).toHaveClass("dialog--wide");
+    await user.type(within(dialog).getByRole("textbox", { name: /title/i }), "Orders");
+    const combos = within(dialog).getAllByRole("combobox");
+    await user.selectOptions(combos[0], "raw_json");
+    expect(combos[0]).toHaveValue("raw_json");
+    await user.clear(within(dialog).getByRole("spinbutton", { name: /width/i }));
+    await user.type(within(dialog).getByRole("spinbutton", { name: /width/i }), "4");
+    await user.clear(within(dialog).getByRole("spinbutton", { name: /height/i }));
+    await user.type(within(dialog).getByRole("spinbutton", { name: /height/i }), "3");
+    expect(within(dialog).getByRole("option", { name: /raw json/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("option", { name: /json preview/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("combobox", { name: /data source/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /add binding/i })).toBeInTheDocument();
+
+    await user.selectOptions(within(dialog).getByRole("combobox", { name: /data source/i }), "source-1");
+    await user.type(within(dialog).getByRole("textbox", { name: /path/i }), "/orders");
+    await user.click(within(dialog).getByRole("button", { name: /add binding/i }));
+    await user.type(within(dialog).getByRole("textbox", { name: /variable/i }), "auth_token");
+    await user.type(within(dialog).getByRole("textbox", { name: /json path/i }), "access_token");
+    await user.click(within(dialog).getByRole("button", { name: /add widget/i }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "/api/dashboards/dashboard-1/widgets?dashboardVersion=4",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          title: "Orders",
+          type: "raw_json",
+          x: 0,
+          y: 0,
+          w: 4,
+          h: 3,
+          displayConfigJson: null,
+          dataSourceJson: JSON.stringify({
+            kind: "rest",
+            dataSourceId: "source-1",
+            request: {
+              path: "/orders",
+              method: "GET",
+              headers: {},
+              body: null
+            },
+            responseBindings: [{ variable: "auth_token", jsonPath: "access_token" }]
+          })
+        })
+      })
+    );
+  });
+
   it("does not change widget position through the edit panel", async () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
