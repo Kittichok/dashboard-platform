@@ -42,6 +42,7 @@ interface DataSource {
 interface RestApiSourceConfig {
   baseUrl: string;
   authentication: AuthenticationConfig;
+  headers: Record<string, string>;
 }
 
 type AuthenticationConfig =
@@ -59,7 +60,8 @@ type AuthenticationConfig =
   "type": "rest",
   "config": {
     "baseUrl": "https://api.example.com",
-    "authentication": { "type": "bearer_token", "value": "tok_..." }
+    "authentication": { "type": "bearer_token", "value": "tok_..." },
+    "headers": {}
   },
   "version": 1,
   "createdAt": "2026-06-20T10:00:00Z",
@@ -78,15 +80,36 @@ type AuthenticationConfig =
 | `POST` | `/api/data-sources/import` | `{ name, type, config }` | `201` |
 | `GET` | `/api/data-sources/{id}/export` | — | `{ name, type, config }` |
 
-### Create flow
+### Create flow (single)
 
 ```
 POST /api/data-sources
 { "name": "My API", "type": "rest",
   "config": { "baseUrl": "https://api.example.com",
-    "authentication": { "type": "bearer_token", "value": "tok_abc" } } }
+    "authentication": { "type": "bearer_token", "value": "tok_abc" },
+    "headers": {} } }
 ```
 → `201` with `DataSourceResponse` containing the generated `id` and `version: 1`.
+
+### Import file format (single)
+
+For importing a data source via the UI or API, send ONE data source object:
+
+```json
+{
+  "name": "Auth Token Service",
+  "type": "rest",
+  "config": {
+    "baseUrl": "https://blue-engagementservice-dev.azure.test.bbl",
+    "authentication": { "type": "none" },
+    "headers": {}
+  }
+}
+```
+
+**Each data source must be imported separately** via `POST /api/data-sources/import` (one request per data source). After each import, note the returned `id` for use in widget `dataSourceId` references.
+
+**For bulk setup:** Copy the single-object format, modify `name` and `baseUrl`, then POST each one individually. You'll have 3 separate import requests for 3 data sources.
 
 ---
 
