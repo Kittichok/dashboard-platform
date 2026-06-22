@@ -1,0 +1,81 @@
+{
+  "name": "Server Availability - Card Services",
+  "description": "Checks service availability via API responses (expected HTTP 200) with automatic auth token chaining.",
+  "variableState": {},
+  "widgets": [
+    {
+      "id": "f7c0a8be-a1ad-4f4f-95f8-229f85cfaf01",
+      "title": "Auth Token API",
+      "type": "raw_json",
+      "x": 0,
+      "y": 0,
+      "w": 12,
+      "h": 5,
+      "displayConfig": null,
+      "dataSource": {
+        "type": "rest",
+        "url": "https://blue-engagementservice-dev.azure.test.bbl/get-token/deh/apptoken",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": "{\n  \"resource\": \"28344ef6-62b5-408b-bf28-f4b3cdcc03a1/.default\"\n}",
+        "responseBindings": [
+          {
+            "variable": "auth_token",
+            "jsonPath": "access_token"
+          }
+        ]
+      }
+    },
+    {
+      "id": "0f7bc766-6650-4dac-af4d-f347dacde82a",
+      "title": "Card Services Convert",
+      "type": "raw_json",
+      "x": 0,
+      "y": 5,
+      "w": 6,
+      "h": 5,
+      "displayConfig": null,
+      "dataSource": {
+        "type": "rest",
+        "url": "http://api-dev.test.bbl/card-services/credit-cards/card-reference/convert",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": "Bearer {{auth_token}}"
+        },
+        "body": "{\n  \"cardNumber\": \"4546288900011119\"\n}"
+      }
+    },
+    {
+      "id": "2f3ef03b-f589-4ec3-8610-2ca170819cb2",
+      "title": "ESIS Card Balance Inquiry",
+      "type": "raw_json",
+      "x": 6,
+      "y": 5,
+      "w": 6,
+      "h": 5,
+      "displayConfig": null,
+      "dataSource": {
+        "type": "rest",
+        "url": "https://api-dev.test.bbl/esis/card-services/credit-cards/balance/inquiry",
+        "method": "POST",
+        "headers": {
+          "BBL-Teller": "8054",
+          "BBL-Terminal": "8054",
+          "BBL-Branch": "8054",
+          "BBL-Format": "BBL-LOS-XSD",
+          "BBL-Channel": "MB,APP",
+          "BBL-AdditonalInfo": "{{auth_token}}",
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": "Bearer {{auth_token}}"
+        },
+        "body": "{\n  \"cardNums\": [\n    \"4546320581190002826803799\"\n  ]\n}"
+      }
+    }
+  ]
+}

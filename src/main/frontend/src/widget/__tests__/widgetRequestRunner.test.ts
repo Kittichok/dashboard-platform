@@ -240,4 +240,145 @@ describe("runWidgetRequests", () => {
       }
     });
   });
+
+  it("extracts token variable from responseBindings and uses it for dependent widget headers", async () => {
+    const fetchWidgetData = vi
+      .fn()
+      .mockResolvedValueOnce(ok({ access_token: "tok_123" }))
+      .mockResolvedValueOnce(ok({ status: "up" }));
+
+    const tokenWidget = widget({
+      id: "widget-token",
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-auth",
+        request: {
+          path: "/token",
+          method: "POST",
+          headers: {},
+          body: "{}"
+        },
+        responseBindings: [{ variable: "auth_token", jsonPath: "access_token" }]
+      }
+    });
+
+    const downstreamWidget = widget({
+      id: "widget-services",
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-services",
+        request: {
+          path: "/services",
+          method: "GET",
+          headers: { Authorization: "Bearer {{auth_token}}" },
+          body: null
+        }
+      }
+    });
+
+    await runWidgetRequests({
+      dashboardId: "dashboard-1",
+      widgets: [tokenWidget, downstreamWidget],
+      fetchWidgetData,
+    });
+
+    expect(fetchWidgetData).toHaveBeenNthCalledWith(
+      2,
+      "dashboard-1",
+      "widget-services",
+      expect.objectContaining({
+        request: expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: "Bearer tok_123" }),
+        }),
+      })
+    );
+  });
+
+  it("runs token provider first then dependent widgets in later stage", async () => {
+    const calls: string[] = [];
+    const fetchWidgetData = vi.fn(async (_dashboardId: string, widgetId: string) => {
+      calls.push(widgetId);
+      if (widgetId === "token-widget") {
+        return ok({ data: { token: "abc" } });
+      }
+      return ok({ result: "ok" });
+    });
+
+    const tokenWidget = widget({
+      id: "token-widget",
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-auth",
+        request: {
+          path: "/token",
+          method: "POST",
+          headers: {},
+          body: "{}"
+        },
+        responseBindings: [{ variable: "auth_token", jsonPath: "data.token" }]
+      }
+    });
+    const dependentWidget = widget({
+      id: "dependent-widget",
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-service",
+        request: {
+          path: "/service",
+          method: "GET",
+          headers: { Authorization: "Bearer {{auth_token}}" },
+          body: null
+        }
+      }
+    });
+
+    await runWidgetRequests({
+      dashboardId: "dashboard-1",
+      widgets: [dependentWidget, tokenWidget],
+      fetchWidgetData,
+    });
+
+    expect(calls).toEqual(["token-widget", "dependent-widget"]);
+  });
+
+  it("does not execute dependent widget when required token is missing", async () => {
+    const fetchWidgetData = vi.fn().mockResolvedValueOnce(ok({}));
+
+    const tokenWidget = widget({
+      id: "token-widget",
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-auth",
+        request: {
+          path: "/token",
+          method: "POST",
+          headers: {},
+          body: "{}"
+        },
+        responseBindings: [{ variable: "auth_token", jsonPath: "data.token" }]
+      }
+    });
+    const dependentWidget = widget({
+      id: "dependent-widget",
+      dataSource: {
+        kind: "rest",
+        dataSourceId: "source-service",
+        request: {
+          path: "/service",
+          method: "GET",
+          headers: { Authorization: "Bearer {{auth_token}}" },
+          body: null
+        }
+      }
+    });
+
+    const results = await runWidgetRequests({
+      dashboardId: "dashboard-1",
+      widgets: [tokenWidget, dependentWidget],
+      fetchWidgetData,
+    });
+
+    expect(fetchWidgetData).toHaveBeenCalledTimes(1);
+    expect(results["dependent-widget"]).toEqual({ ok: false, status: 424 });
+  });
 });

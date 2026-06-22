@@ -72,6 +72,43 @@ const summaryWidget = {
   }
 };
 
+const tokenWidget = {
+  id: "widget-token",
+  title: "Token API",
+  type: "raw_json" as const,
+  x: 0,
+  y: 0,
+  w: 3,
+  h: 2,
+  displayConfig: null,
+  dataSource: {
+    type: "rest" as const,
+    url: "https://auth.example.test/token",
+    method: "POST" as const,
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+    responseBindings: [{ variable: "auth_token", jsonPath: "access_token" }]
+  }
+};
+
+const protectedWidget = {
+  id: "widget-services",
+  title: "Protected Service",
+  type: "raw_json" as const,
+  x: 3,
+  y: 0,
+  w: 3,
+  h: 2,
+  displayConfig: null,
+  dataSource: {
+    type: "rest" as const,
+    url: "https://api.example.test/services",
+    method: "GET" as const,
+    headers: { Authorization: "Bearer {{auth_token}}" },
+    body: null
+  }
+};
+
 describe("DashboardViewer search and refresh", () => {
   const fetchMock = vi.fn();
 
@@ -291,5 +328,32 @@ describe("DashboardViewer search and refresh", () => {
     await waitFor(() => {
       expect(input).toHaveValue("42");
     });
+  });
+
+  it("uses token widget response to authorize downstream widget request in one Search click", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(dashboard));
+    fetchMock.mockResolvedValueOnce(jsonResponse([tokenWidget, protectedWidget]));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...dashboard, variableState: {}, version: 5 }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ access_token: "tok_999" }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ status: "up" }));
+
+    renderViewer();
+    await screen.findByRole("heading", { name: "Token API" });
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "/api/dashboards/dashboard-1/widgets/widget-services/fetch",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          ...protectedWidget.dataSource,
+          headers: {
+            Authorization: "Bearer tok_999"
+          }
+        })
+      })
+    );
   });
 });
