@@ -11,12 +11,18 @@ export type WidgetFetchResult =
   | { ok: true; data: unknown }
   | { ok: false; status: number };
 
+export interface ResponseBinding {
+  variable: string;
+  jsonPath: string;
+}
+
 export interface LegacyRestDataSource {
   type: 'rest';
   url: string;
   method: 'GET' | 'POST';
   headers: Record<string, string>;
   body: string | null;
+  responseBindings?: ResponseBinding[];
 }
 
 export interface WidgetRestRequest {
@@ -30,6 +36,7 @@ export interface SelectedRestDataSource {
   kind: 'rest';
   dataSourceId: string;
   request: WidgetRestRequest;
+  responseBindings?: ResponseBinding[];
 }
 
 export interface TableDataSource {

@@ -221,6 +221,7 @@ interface SelectedRestDataSource {
   dataSourceId: string;
   request: { path: string; method: "GET" | "POST";
              headers: Record<string, string>; body: string | null };
+  responseBindings?: ResponseBinding[];
 }
 
 // Inline — no shared DataSource
@@ -230,6 +231,12 @@ interface LegacyRestDataSource {
   method: "GET" | "POST";
   headers: Record<string, string>;
   body: string | null;
+  responseBindings?: ResponseBinding[];
+}
+
+interface ResponseBinding {
+  variable: string;
+  jsonPath: string;
 }
 
 // Database table query
@@ -266,7 +273,7 @@ interface TableDataSource {
   "type": "table",
   "x": 0, "y": 0, "w": 6, "h": 4,
   "displayConfigJson": "{\"selectedFields\":[\"$.revenue\",\"$.date\"]}",
-  "dataSourceJson": "{\"kind\":\"rest\",\"dataSourceId\":\"<uuid>\",\"request\":{\"path\":\"/v1/sales\",\"method\":\"GET\",\"headers\":{},\"body\":null}}"
+  "dataSourceJson": "{\"kind\":\"rest\",\"dataSourceId\":\"<uuid>\",\"request\":{\"path\":\"/v1/sales\",\"method\":\"GET\",\"headers\":{},\"body\":null},\"responseBindings\":[{\"variable\":\"auth_token\",\"jsonPath\":\"access_token\"}]}"
 }
 ```
 
@@ -278,7 +285,8 @@ interface TableDataSource {
   "x": 0, "y": 0, "w": 6, "h": 4,
   "displayConfig": { "selectedFields": ["$.revenue", "$.date"] },
   "dataSource": { "kind": "rest", "dataSourceId": "<uuid>",
-    "request": { "path": "/v1/sales", "method": "GET", "headers": {}, "body": null } }
+    "request": { "path": "/v1/sales", "method": "GET", "headers": {}, "body": null },
+    "responseBindings": [{ "variable": "auth_token", "jsonPath": "access_token" }] }
 }
 ```
 
@@ -314,6 +322,7 @@ POST /api/dashboards/{dashboardId}/widgets?dashboardVersion=1
 - **Data fetching proxied**: The browser never calls external APIs directly. It posts to `POST .../widgets/{id}/fetch` and the server proxies the request.
 - **References**: A Data Source referenced by any widget (`dataSourceId` in `SelectedRestDataSource`) cannot be deleted until all references are removed. The `DELETE /api/data-sources/{id}` endpoint checks references and returns them in the error body.
 - **Variable tokens**: `{{variableName}}` in widget request paths, headers, and bodies is resolved client-side by `widgetRequestRunner.ts` at search/refresh time.
+- **Response bindings**: REST data sources may define `responseBindings` to capture values from one widget response (for example `access_token`) into runtime variables (for example `auth_token`) used by later dependent widgets in the same search/refresh run.
 - **Grid**: 12-column CSS grid with 16px gap. Widgets are positioned by `(x, y)` and sized by `(w, h)`.
 
 ---

@@ -5,5 +5,6 @@
 /src/main/frontend/dist/
 /src/main/frontend/node_modules/
 /src/main/frontend/tsconfig.tsbuildinfo
+/.worktrees/
 
 *.log

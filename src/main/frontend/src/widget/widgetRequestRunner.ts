@@ -31,32 +31,56 @@ export async function runWidgetRequests({
   onWidgetResult
 }: RunWidgetRequestsInput): Promise<Record<string, WidgetFetchResult>> {
   const results: Record<string, WidgetFetchResult> = {};
-  const groups = new Map<string, Widget[]>();
+  const runtimeVariables = { ...variables };
+  const pending = widgets.filter((widget) => widget.dataSource);
 
-  for (const widget of widgets) {
-    if (!widget.dataSource) {
-      continue;
-    }
-    const resolved = resolveDataSourceVariables(widget.dataSource, variables);
-    const resolvedWidget = { ...widget, dataSource: resolved };
-    const key = stableStringify(resolved);
-    groups.set(key, [...(groups.get(key) ?? []), resolvedWidget]);
-  }
+  while (pending.length > 0) {
+    const runnableEntries = pending
+      .filter((widget) => canResolveWidget(widget, runtimeVariables))
+      .map((widget) => ({
+        widget,
+        dataSource: resolveDataSourceVariables(widget.dataSource, runtimeVariables),
+      }));
 
-  await Promise.all(
-    Array.from(groups.values()).map(async (group) => {
-      const representative = group[0];
-      const result = await fetchWidgetData(
-        dashboardId,
-        representative.id,
-        representative.dataSource ?? undefined
-      );
-      for (const widget of group) {
-        results[widget.id] = result;
-        onWidgetResult?.(widget.id, result);
+    if (runnableEntries.length === 0) {
+      for (const blocked of pending) {
+        results[blocked.id] = { ok: false, status: 424 };
+        onWidgetResult?.(blocked.id, results[blocked.id]);
       }
-    })
-  );
+      break;
+    }
+
+    const groups = new Map<string, Array<{ widget: Widget; dataSource: Widget["dataSource"] }>>();
+    for (const entry of runnableEntries) {
+      const key = stableStringify(entry.dataSource);
+      groups.set(key, [...(groups.get(key) ?? []), entry]);
+    }
+
+    await Promise.all(
+      Array.from(groups.values()).map(async (group) => {
+        const representative = group[0];
+        const result = await fetchWidgetData(
+          dashboardId,
+          representative.widget.id,
+          representative.dataSource ?? undefined
+        );
+        for (const entry of group) {
+          results[entry.widget.id] = result;
+          onWidgetResult?.(entry.widget.id, result);
+          if (result.ok) {
+            applyResponseBindings(entry.widget.dataSource, result.data, runtimeVariables);
+          }
+        }
+      })
+    );
+
+    const runnableIds = new Set(runnableEntries.map((entry) => entry.widget.id));
+    for (let i = pending.length - 1; i >= 0; i -= 1) {
+      if (runnableIds.has(pending[i].id)) {
+        pending.splice(i, 1);
+      }
+    }
+  }
 
   return results;
 }
@@ -128,6 +152,118 @@ function resolveDataSourceVariables(dataSource: Widget["dataSource"], variables:
     ),
     body: dataSource.body === null ? null : replaceVariables(dataSource.body, variables)
   };
+}
+
+function applyResponseBindings(
+  dataSource: Widget["dataSource"],
+  data: unknown,
+  variables: Record<string, string>
+) {
+  if (!isRestSourceWithBindings(dataSource)) {
+    return;
+  }
+  for (const binding of dataSource.responseBindings ?? []) {
+    if (!isValidBindingVariable(binding.variable)) {
+      continue;
+    }
+    const value = readJsonPath(data, binding.jsonPath);
+    if (typeof value === "string" && value.length > 0) {
+      variables[binding.variable] = value;
+    }
+  }
+}
+
+function canResolveWidget(widget: Widget, variables: Record<string, string>): boolean {
+  if (!widget.dataSource) {
+    return false;
+  }
+  const requiredVariables = extractRequiredVariableNames(widget.dataSource);
+  return requiredVariables.every((name) => Object.prototype.hasOwnProperty.call(variables, name));
+}
+
+function extractRequiredVariableNames(dataSource: Widget["dataSource"]): string[] {
+  if (!dataSource) {
+    return [];
+  }
+  const names = new Set<string>();
+
+  const collect = (value: string) => {
+    for (const match of value.matchAll(variablePattern())) {
+      names.add(match[1]);
+    }
+  };
+
+  if (isSelectedRestDataSource(dataSource)) {
+    collect(dataSource.request.path);
+    Object.entries(dataSource.request.headers).forEach(([key, value]) => {
+      collect(key);
+      collect(value);
+    });
+    if (dataSource.request.body) {
+      collect(dataSource.request.body);
+    }
+  } else if (isLegacyRestDataSource(dataSource)) {
+    collect(dataSource.url);
+    Object.entries(dataSource.headers).forEach(([key, value]) => {
+      collect(key);
+      collect(value);
+    });
+    if (dataSource.body) {
+      collect(dataSource.body);
+    }
+  }
+
+  return Array.from(names);
+}
+
+function isRestSourceWithBindings(
+  dataSource: Widget["dataSource"]
+): dataSource is Extract<DataSource, { kind: "rest" } | { type: "rest" }> {
+  return Boolean(dataSource && (("kind" in dataSource && dataSource.kind === "rest") || ("type" in dataSource && dataSource.type === "rest")));
+}
+
+function isValidBindingVariable(name: string): boolean {
+  return /^[A-Za-z0-9_.-]+$/.test(name);
+}
+
+function readJsonPath(data: unknown, jsonPath: string): unknown {
+  if (!jsonPath) {
+    return undefined;
+  }
+  const segments = tokenizeJsonPath(jsonPath);
+  if (segments.length === 0) {
+    return undefined;
+  }
+
+  let current: unknown = data;
+  for (const segment of segments) {
+    if (Array.isArray(current)) {
+      const index = Number(segment);
+      if (!Number.isInteger(index) || index < 0 || index >= current.length) {
+        return undefined;
+      }
+      current = current[index];
+      continue;
+    }
+    if (current === null || typeof current !== "object") {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
+function tokenizeJsonPath(path: string): string[] {
+  const matches = path.matchAll(/([A-Za-z0-9_-]+)|\[(\d+)\]/g);
+  const segments: string[] = [];
+  for (const match of matches) {
+    if (match[1]) {
+      segments.push(match[1]);
+    } else if (match[2]) {
+      segments.push(match[2]);
+    }
+  }
+  return segments;
 }
 
 function collectVariables(value: string, names: Map<string, DataSourceVariable>) {
